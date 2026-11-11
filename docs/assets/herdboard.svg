@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-labelledby="title">
+  <title id="title">herdboard</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2a2f45"/>
+      <stop offset="1" stop-color="#161925"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <!-- column tracks -->
+  <g fill="#ffffff" fill-opacity="0.06">
+    <rect x="20" y="20" width="24" height="88" rx="7"/>
+    <rect x="52" y="20" width="24" height="88" rx="7"/>
+    <rect x="84" y="20" width="24" height="88" rx="7"/>
+  </g>
+  <!-- backlog -->
+  <g fill="#7aa2f7">
+    <rect x="23" y="24" width="18" height="14" rx="4"/>
+    <rect x="23" y="42" width="18" height="14" rx="4" fill-opacity="0.75"/>
+    <rect x="23" y="60" width="18" height="14" rx="4" fill-opacity="0.5"/>
+  </g>
+  <!-- in progress: one card with a working agent -->
+  <rect x="55" y="24" width="18" height="14" rx="4" fill="#e0af68"/>
+  <rect x="55" y="42" width="18" height="14" rx="4" fill="#e0af68" fill-opacity="0.6"/>
+  <circle cx="64" cy="31" r="3.2" fill="#161925"/>
+  <!-- done -->
+  <rect x="87" y="24" width="18" height="14" rx="4" fill="#9ece6a"/>
+  <path d="M91.5 31.2 l3 3 l6 -6.2" fill="none" stroke="#161925" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
