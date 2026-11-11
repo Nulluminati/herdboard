@@ -18,18 +18,20 @@ Requirements:
 Install the Herdr plugin, the `herdboard` command and the agent skill:
 
 ```bash
-herdr plugin install Nulluminati/herdr-extensions/plugins/herdboard
-uv tool install "git+https://github.com/Nulluminati/herdr-extensions#subdirectory=plugins/herdboard"
-npx skills add Nulluminati/herdr-extensions@herdboard -g -y
+git clone git@github.com:Nulluminati/herdboard.git ~/Projects/herdboard
+herdr plugin link ~/Projects/herdboard
+uv tool install "git+ssh://git@github.com/Nulluminati/herdboard"
+npx skills add Nulluminati/herdboard@herdboard -g -y
 ```
+
+The repository is private, so the commands use SSH and need a GitHub account with access to it.
 
 The board pane runs through `uv` from the plugin folder, so it works without the `herdboard` command. Agents need the command on the path.
 
-To work on herdboard from a clone, link the plugin and install the command in editable mode:
+To work on herdboard from the clone, install the command in editable mode:
 
 ```bash
-herdr plugin link ~/Projects/herdr-extensions/plugins/herdboard
-uv tool install -e ~/Projects/herdr-extensions/plugins/herdboard
+uv tool install -e ~/Projects/herdboard
 ```
 
 Bind the board action in `~/.config/herdr/config.toml`:
@@ -1211,7 +1213,7 @@ Convert your real todos in this order:
 
 1. Close every board view.
 2. Stop the automations timer: `systemctl --user stop herdboard-automations.timer`.
-3. Install the new version: `uv tool install --reinstall <path to plugins/herdboard>`.
+3. Install the new version: `uv tool install --reinstall <path to the herdboard clone>`.
 4. Run `herdboard convert-store --dry-run` and read the report.
 5. Run `herdboard convert-store`.
 6. Run `herdboard doctor`.
@@ -1258,7 +1260,7 @@ herdboard keeps its state in `~/.local/state/herdboard/`:
 ## Tests
 
 ```bash
-uv run pytest -n auto tests/herdboard
+uv run pytest -n auto
 ```
 
 Run it from the repository root. `tests/unit` holds the fast tests and `tests/ui` the Textual pilot tests; run `uv run pytest -n auto tests/unit` for the fast ones only. The tests use fake `herdr`, `gh` and Linear servers. Behavior that depends on Herdr, the agents or GitHub needs a live test with a throwaway repository. [docs/linear-live-test.md](docs/linear-live-test.md) is the checklist for the real Linear API.

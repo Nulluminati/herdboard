@@ -9,11 +9,11 @@ The unit tests use a fake Linear server that validates every query against Linea
 
 ```bash
 export LINEAR_API_KEY=lin_api_...          # your key
-export HB_REPO=~/personal/herdr-extensions  # where this repository is cloned
+export HB_REPO=~/Projects/herdboard  # where this repository is cloned
 export HB_TMP=$(mktemp -d)
 printf 'todos_dir = "%s/todos"\n' "$HB_TMP" > "$HB_TMP/config.toml"
 export HERDBOARD_CONFIG="$HB_TMP/config.toml"
-hb() { uv run --quiet --project "$HB_REPO/plugins/herdboard" herdboard "$@"; echo "[exit $?]"; }
+hb() { uv run --quiet --project "$HB_REPO" herdboard "$@"; echo "[exit $?]"; }
 ```
 
 3. Pick one work repository that has a Linear project. Change into it: `cd ~/work/<repo>`.
@@ -65,7 +65,7 @@ These checks change real issues. Run them only on a throwaway issue and a throwa
 Snippet for W12. It creates one issue in the first team that you belong to.
 
 ```bash
-uv run --project "$HB_REPO/plugins/herdboard" python - <<'PY'
+uv run --project "$HB_REPO" python - <<'PY'
 import os, uuid
 from herdboard.linear import LinearClient
 client = LinearClient(os.environ["LINEAR_API_KEY"])

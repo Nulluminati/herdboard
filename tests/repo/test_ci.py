@@ -1,0 +1,55 @@
+import unittest
+
+import yaml
+
+from support.paths import ROOT
+
+WORKFLOW = ROOT / ".github/workflows/ci.yml"
+
+
+class CiTests(unittest.TestCase):
+    def setUp(self):
+        self.workflow = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+
+    def test_runs_on_main_pushes_and_all_pull_requests(self):
+        self.assertEqual(
+            self.workflow["on"],
+            {
+                "push": {"branches": ["main"]},
+                "pull_request": None,
+            },
+        )
+
+    def test_uses_read_only_repository_permissions(self):
+        self.assertEqual(self.workflow["permissions"], {"contents": "read"})
+        checkout = self.workflow["jobs"]["test"]["steps"][0]
+        self.assertTrue(checkout["uses"].startswith("actions/checkout@"))
+        self.assertFalse(checkout["with"]["persist-credentials"])
+
+    def test_runs_the_full_suite_with_locked_dependencies_on_latest_python(self):
+        job = self.workflow["jobs"]["test"]
+        self.assertEqual(job["runs-on"], "ubuntu-latest")
+        steps = job["steps"]
+        setup_python = next(step for step in steps if step.get("uses", "").startswith("actions/setup-python@"))
+        self.assertEqual(setup_python["with"]["python-version"], "3.x")
+        self.assertTrue(any(step.get("uses", "").startswith("astral-sh/setup-uv@") for step in steps))
+        self.assertIn(
+            "uv run --locked pytest -n auto --cov=src --cov=bin --cov-report=term-missing",
+            [step.get("run") for step in steps],
+        )
+
+    def test_lints_and_checks_the_format_before_the_tests(self):
+        job = self.workflow["jobs"]["test"]
+        self.assertEqual(job["timeout-minutes"], 10)
+        commands = [step.get("run") for step in job["steps"]]
+        tests = commands.index("uv run --locked pytest -n auto --cov=src --cov=bin --cov-report=term-missing")
+        self.assertLess(commands.index("uv run --locked ruff check ."), tests)
+        self.assertLess(commands.index("uv run --locked ruff format --check ."), tests)
+
+    def test_checks_that_the_lock_file_matches_the_manifest(self):
+        commands = [step.get("run") for step in self.workflow["jobs"]["test"]["steps"]]
+        self.assertIn("uv lock --check", commands)
+
+
+if __name__ == "__main__":
+    unittest.main()
