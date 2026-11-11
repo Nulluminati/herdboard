@@ -7,7 +7,7 @@ from pathlib import Path
 
 from support.paths import ROOT
 
-SRC = ROOT / "plugins/herdboard/src"
+SRC = ROOT / "src"
 
 # `sys.modules["yaml"] = None` makes `import yaml` fail, like a missing package.
 RUN = """

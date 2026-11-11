@@ -14,7 +14,7 @@ from support.herdboard_cli import CliTestCase
 from support.herdboard_store import render_markdown, write_board
 from support.paths import ROOT
 
-FIXTURES = ROOT / "tests/herdboard/fixtures/migrate"
+FIXTURES = ROOT / "tests/fixtures/migrate"
 ID = re.compile(r" \^t[0-9a-z]{3}$", re.M)
 
 

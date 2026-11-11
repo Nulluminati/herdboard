@@ -3,7 +3,7 @@ import unittest
 from herdboard.migrate_convert import convert, slug
 from support.paths import ROOT
 
-FIXTURES = ROOT / "tests/herdboard/fixtures/migrate"
+FIXTURES = ROOT / "tests/fixtures/migrate"
 
 
 def load(name):

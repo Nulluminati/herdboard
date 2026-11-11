@@ -15,7 +15,7 @@ from herdboard.store import Store
 from support.herdboard_board import SIZE, BoardTestCase, fill, settle
 from support.paths import ROOT
 
-FIXTURE = ROOT / "tests/herdboard/fixtures/kanban-2.0.51-full.md"
+FIXTURE = ROOT / "tests/fixtures/kanban-2.0.51-full.md"
 NARROW = (80, 24)
 
 

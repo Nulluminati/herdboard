@@ -12,7 +12,7 @@ from herdboard.store import Store
 from support.herdboard_cli import CliTestCase
 from support.paths import ROOT
 
-SRC = ROOT / "plugins/herdboard/src"
+SRC = ROOT / "src"
 
 
 class CommandTests(CliTestCase):

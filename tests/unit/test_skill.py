@@ -20,7 +20,7 @@ from herdboard.model import (
 from herdboard.promote import AlreadyPromotedError, NotATodoError
 from support.paths import ROOT
 
-SKILL = ROOT / "plugins/herdboard/skills/herdboard/SKILL.md"
+SKILL = ROOT / "skills/herdboard/SKILL.md"
 
 
 def skill_commands():

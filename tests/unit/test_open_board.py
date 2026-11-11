@@ -8,8 +8,8 @@ from unittest.mock import patch
 from support.paths import ROOT
 from support.scripts import load_script
 
-PLUGIN = ROOT / "plugins/herdboard"
-open_board = load_script("herdboard", "open_board")
+PLUGIN = ROOT
+open_board = load_script("open_board")
 
 
 class OpenBoardTests(unittest.TestCase):

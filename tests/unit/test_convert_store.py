@@ -15,7 +15,7 @@ from herdboard.model import OldFormatError
 from herdboard.store import Store
 from support.paths import ROOT
 
-FIXTURES = ROOT / "tests/herdboard/fixtures/convert"
+FIXTURES = ROOT / "tests/fixtures/convert"
 
 
 class SplitTitleTests(unittest.TestCase):

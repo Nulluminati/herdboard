@@ -4,7 +4,7 @@ from herdboard import kanban_md
 from herdboard.kanban_md import Card
 from support.paths import ROOT
 
-FIXTURES = ROOT / "tests/herdboard/fixtures"
+FIXTURES = ROOT / "tests/fixtures"
 FULL = (FIXTURES / "kanban-2.0.51-full.md").read_text()
 EMPTY = (FIXTURES / "kanban-2.0.51-empty.md").read_text()
 

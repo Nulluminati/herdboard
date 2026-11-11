@@ -813,7 +813,7 @@ class StartTests(unittest.TestCase):
         home = self.root / "codex-home"
         folder = home / ".codex"
         folder.mkdir(parents=True)
-        fixtures = ROOT / "tests/herdboard/fixtures/codex"
+        fixtures = ROOT / "tests/fixtures/codex"
         for name in ("config.toml", "models_cache.json"):
             (folder / name).write_bytes((fixtures / name).read_bytes())
         with patch.dict(os.environ, {"HOME": str(home)}):

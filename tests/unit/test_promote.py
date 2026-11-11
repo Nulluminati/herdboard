@@ -16,7 +16,7 @@ from support.herdboard_linear_writes import WriterCase
 from support.herdboard_store import render_markdown, write_markdown_board
 from support.paths import ROOT
 
-FIXTURE = ROOT / "tests/herdboard/fixtures/kanban-promote.md"
+FIXTURE = ROOT / "tests/fixtures/kanban-promote.md"
 HEADER = "---\n\nkanban-plugin: board\n\n---\n\n"
 FOOTER = '\n%% kanban:settings\n```\n{"kanban-plugin":"board"}\n```\n%%'
 ENG = {"id": "t-eng", "key": "ENG"}

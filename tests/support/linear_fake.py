@@ -15,7 +15,7 @@ from graphql.execution.values import get_variable_values
 
 from support.paths import ROOT
 
-SCHEMA_PATH = ROOT / "tests/herdboard/fixtures/linear/schema.graphql.gz"
+SCHEMA_PATH = ROOT / "tests/fixtures/linear/schema.graphql.gz"
 
 
 @functools.lru_cache(maxsize=1)

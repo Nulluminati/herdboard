@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from support.scripts import load_script
 
-sidebar_refresh = load_script("herdboard", "sidebar_refresh")
+sidebar_refresh = load_script("sidebar_refresh")
 
 
 class SidebarRefreshHookTests(unittest.TestCase):
