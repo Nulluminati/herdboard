@@ -6,6 +6,10 @@
 
 <p align="center">A kanban board inside Herdr for your todos and your Linear issues.<br>A card can start an agent, and herdboard reviews and merges its work.</p>
 
+<p align="center">
+  <img src="docs/assets/board.png" alt="The herdboard board for the herdboard repository, with Backlog, Todo, In progress, Review and Done columns">
+</p>
+
 ---
 
 Todos are plain files. Each board is a folder in `~/todos`, and each card is a folder with a Markdown file. Linear issues show on the same board, in the same columns, with the same commands.
