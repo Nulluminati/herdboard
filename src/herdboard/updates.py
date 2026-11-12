@@ -4,6 +4,7 @@ The board asks the GitHub Releases API once at start. `herdboard update` install
 for both the Herdr plugin and the `herdboard` command. Standard library only.
 """
 
+import http.client
 import importlib.metadata
 import json
 import os
@@ -57,8 +58,9 @@ def latest_release(timeout: float = 3.0) -> str | None:
     try:
         with urllib.request.urlopen(request, timeout=timeout) as reply:
             data = json.loads(reply.read())
-    except (OSError, ValueError):
-        # URLError, HTTPError and timeouts are OSErrors; bad JSON is a ValueError.
+    except (OSError, ValueError, http.client.HTTPException):
+        # URLError, HTTPError and timeouts are OSErrors; bad JSON is a ValueError; a broken reply, such as
+        # a truncated body or a bad status line, is an HTTPException.
         return None
     tag = data.get("tag_name") if isinstance(data, dict) else None
     if not isinstance(tag, str) or not tag:
@@ -127,5 +129,11 @@ def update(current: str, run: Callable[[list[str]], subprocess.CompletedProcess]
         raise UpdateUnsupportedError(f"This install is a linked clone. Run git pull in {root} instead.")
     tag = f"v{latest}"
     _checked(run, [herdr, "plugin", "install", REPOSITORY, "--ref", tag, "--yes"])
-    _checked(run, ["uv", "tool", "install", "--force", f"{TOOL_SOURCE}@{tag}"])
+    try:
+        _checked(run, ["uv", "tool", "install", "--force", f"{TOOL_SOURCE}@{tag}"])
+    except UpdateFailedError as error:
+        raise UpdateFailedError(
+            f"{error}\nThe Herdr plugin is at {tag}. Install the herdboard command for it: "
+            f'uv tool install --force "{TOOL_SOURCE}@{tag}"'
+        ) from error
     return {"current": current, "latest": latest, "updated": True}

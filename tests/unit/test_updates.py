@@ -1,5 +1,6 @@
 """The check for a newer herdboard release, and the `herdboard update` command."""
 
+import http.client
 import io
 import json
 import os
@@ -41,6 +42,15 @@ class LatestReleaseTests(unittest.TestCase):
 
     def test_returns_none_on_a_timeout(self):
         self.assertIsNone(self.latest(side_effect=TimeoutError("timed out"))[0])
+
+    def test_returns_none_on_a_broken_http_reply(self):
+        self.assertIsNone(self.latest(side_effect=http.client.BadStatusLine("HTTP/9"))[0])
+
+        class Truncated(io.BytesIO):
+            def read(self, *args):
+                raise http.client.IncompleteRead(b"{", 10)
+
+        self.assertIsNone(self.latest(return_value=Truncated())[0])
 
     def test_returns_none_on_bad_json(self):
         self.assertIsNone(self.latest(return_value=response(b"<html>"))[0])
@@ -167,6 +177,16 @@ class UpdateTests(unittest.TestCase):
         with self.assertRaises(updates.UpdateFailedError) as caught:
             self.update(runner)
         self.assertIn("no uv here", str(caught.exception))
+        # The plugin half is done: the message says so, and gives the command to finish.
+        self.assertIn("The Herdr plugin is at v0.2.0", str(caught.exception))
+        finish = 'uv tool install --force "git+https://github.com/Nulluminati/herdboard@v0.2.0"'
+        self.assertIn(finish, str(caught.exception))
+
+    def test_a_failed_plugin_install_does_not_claim_the_plugin_updated(self):
+        runner = FakeRunner((0, plugin_list("github"), ""), (1, "", "network down"))
+        with self.assertRaises(updates.UpdateFailedError) as caught:
+            self.update(runner)
+        self.assertNotIn("The Herdr plugin is at", str(caught.exception))
 
     def test_a_failed_plugin_list_fails_the_update(self):
         runner = FakeRunner((1, "", "herdr is not running"))
@@ -195,6 +215,11 @@ class UpdateCliTests(CliTestCase):
 
     def test_text_reports_the_latest_release(self):
         with patch("herdboard.updates.update", return_value={"current": "0.2.0", "latest": "0.2.0", "updated": False}):
+            out, _ = self.run_cli("update")
+        self.assertEqual(out, "herdboard v0.2.0 is the latest release\n")
+
+    def test_text_names_the_release_without_a_current_version(self):
+        with patch("herdboard.updates.update", return_value={"current": "", "latest": "0.2.0", "updated": False}):
             out, _ = self.run_cli("update")
         self.assertEqual(out, "herdboard v0.2.0 is the latest release\n")
 

@@ -2328,7 +2328,7 @@ def _main(argv: list[str] | None) -> int:
             elif result["updated"]:
                 print(f"Updated herdboard to v{result['latest']}. Reopen the board.")
             else:
-                print(f"herdboard v{result['current']} is the latest release")
+                print(f"herdboard v{result['latest']} is the latest release")
             return 0
         ctx = _Context(args)
         # Every command reads or writes the store, so none may run on the old layout. Only

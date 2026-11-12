@@ -77,8 +77,13 @@ def check(version: str, root: Path) -> None:
         raise ReleaseError(f"The tag {tag} exists")
     changelog = root / CHANGELOG
     text = changelog.read_text(encoding="utf-8") if changelog.exists() else ""
-    if not re.search(rf"^## \[{re.escape(version)}\] - \d{{4}}-\d{{2}}-\d{{2}}$", text, re.M):
+    # The same rule as bin/release_notes.py, so the Release workflow does not refuse a pushed tag.
+    heading = rf"^## \[{re.escape(version)}\] - \d{{4}}-\d{{2}}-\d{{2}}\n"
+    match = re.search(heading + r"(.*?)(?=^## |\Z)", text + "\n", re.M | re.S)
+    if not match:
         raise ReleaseError(f"Add the section `## [{version}] - YYYY-MM-DD` to {CHANGELOG} first")
+    if not match[1].strip():
+        raise ReleaseError(f"The {CHANGELOG} section of {version} is empty. Write the changes in it first")
 
 
 def bump(version: str, root: Path) -> None:

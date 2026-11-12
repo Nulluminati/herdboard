@@ -148,6 +148,15 @@ class ReleaseTests(unittest.TestCase):
     def test_refuses_a_changelog_without_the_section(self):
         self.refuse("0.3.0", message="## [0.3.0] - YYYY-MM-DD")
 
+    def test_refuses_an_empty_changelog_section(self):
+        for text in (
+            "# Changelog\n\n## [Unreleased]\n\n## [0.2.0] - 2026-11-11\n",
+            "# Changelog\n\n## [0.2.0] - 2026-11-11\n\n\n## [0.1.0] - 2026-10-01\n\n- Old.\n",
+        ):
+            with self.subTest(text=text):
+                (self.root / "CHANGELOG.md").write_text(text)
+                self.refuse("0.2.0", message="empty")
+
     def test_refuses_a_missing_changelog(self):
         (self.root / "CHANGELOG.md").unlink()
         self.refuse("0.2.0", message="CHANGELOG.md")
