@@ -54,7 +54,11 @@ class MergeError(HerdboardError):
 
 
 def _git(directory, *args) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", "-C", str(directory), *args], capture_output=True, text=True)
+    # Git output can hold bytes that are not UTF-8, such as a diff of a latin-1 file.
+    # surrogateescape keeps them, so a patch is written back unchanged.
+    return subprocess.run(
+        ["git", "-C", str(directory), *args], capture_output=True, text=True, errors="surrogateescape"
+    )
 
 
 def _dirty(directory, untracked=True) -> bool:

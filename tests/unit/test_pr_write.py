@@ -148,6 +148,13 @@ class RequestTests(PrWriteTestCase):
         ):
             self.assertIn(part, text)
 
+    def test_a_diff_that_is_not_utf8_keeps_its_bytes_in_the_patch(self):
+        (self.worktree / "legacy.c").write_bytes(b"/* caf\xe9 */\n")
+        self.git(self.worktree, "add", "legacy.c")
+        self.git(self.worktree, "commit", "-qm", "feat: add a latin-1 file")
+        self.request()
+        self.assertIn(b"+/* caf\xe9 */", (self.folder / "branch.patch").read_bytes())
+
     def test_the_title_always_follows_one_conventional_commit_guide(self):
         self.request()
         text = (self.folder / "request.md").read_text()

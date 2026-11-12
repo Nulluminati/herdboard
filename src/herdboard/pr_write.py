@@ -154,7 +154,7 @@ def request(merger, card, ref, key, record, worktree: Path, base: str, rewrite_u
         patch = merge._git(worktree, "diff", f"{base}...HEAD").stdout
         requests.mkdir(parents=True, exist_ok=True)
         folder = Path(tempfile.mkdtemp(prefix=f"{safe_key(key)}-{time.strftime('%Y%m%d-%H%M%S')}-", dir=requests))
-        (folder / "branch.patch").write_text(patch, encoding="utf-8")
+        (folder / "branch.patch").write_text(patch, encoding="utf-8", errors="surrogateescape")
         (folder / "request.md").write_text(
             request_text(card, ref, data, folder, find_templates(worktree), entries), encoding="utf-8"
         )
