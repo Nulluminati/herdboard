@@ -1,6 +1,6 @@
 id = "nulluminati.herdboard"
 name = "herdboard"
-version = "0.1.0"
+version = "0.2.0"
 min_herdr_version = "0.9.0"
 description = "Kanban board for local todos and Linear issues."
 platforms = ["linux", "macos"]
