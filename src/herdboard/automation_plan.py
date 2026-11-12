@@ -13,7 +13,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import activity, attachments, automations
+from . import activity, attachments, automations, pi_extensions
 from . import plan as plan_module
 from .agent_review import start_worker
 from .brief import _one_line
@@ -277,6 +277,11 @@ class AutomationPlanner:
                 "it has the automation and how to plan it with me."
             )
             export_config(pane, self.config_file)
+            flags = (
+                pi_extensions.check(worktree, pi_extensions.AGENT_FLAGS, "agent", self.store, ref)
+                if kind == "pi"
+                else None
+            )
             try:
                 herdr(
                     "agent",
@@ -287,7 +292,7 @@ class AutomationPlanner:
                     "--pane",
                     pane,
                     "--",
-                    *planner_arguments(kind, prompt, plan_file.parent, model, thinking),
+                    *planner_arguments(kind, prompt, plan_file.parent, model, thinking, flags),
                     tolerated=("timeout", "agent_not_ready"),
                 )
             except HerdboardError:

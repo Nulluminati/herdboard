@@ -12,7 +12,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
-from herdboard import activity, attachments, automations, start
+from herdboard import activity, attachments, automations, pi_extensions, start
 from herdboard.automations import Automation, parse_schedule
 from herdboard.brief import brief_text
 from herdboard.config import Config
@@ -1210,6 +1210,18 @@ class PlanAutomationTests(LocalTime):
                 folder = attachments.plan_path(self.config, added.id).parent
                 model = args[args.index("--model") + 1] if "--model" in args else None
                 self.assertEqual(args, plan.planner_arguments(kind, prompt, folder, model, None))
+
+    def test_a_pi_automation_planner_without_approval_mode_starts_and_warns(self):
+        added = self.add("inbox")
+        with patch.object(pi_extensions, "pi_flags", return_value=frozenset()) as flags:
+            result = self.planner.plan(added.id, agent="pi")
+        flags.assert_called_once_with(Path(result["worktree_path"]))
+        self.assertNotIn("--approval-reject", self.fake.find("agent", "start")[0])
+        shown = [c for c in self.fake.calls if c[:3] == ["notification", "show", "pi extensions missing"]]
+        self.assertEqual(len(shown), 1)
+        self.assertIn(pi_extensions.EXTENSIONS_URL, shown[0][-1])
+        logged = [e["message"] for e in activity.read(self.config, added.id) if e["author"] == "herdboard"]
+        self.assertTrue(any(pi_extensions.EXTENSIONS_URL in message for message in logged))
 
     def test_a_running_planner_blocks_a_second_one(self):
         added = self.add("inbox")

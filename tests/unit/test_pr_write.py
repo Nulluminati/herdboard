@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from herdboard import activity, merge, pr_write, sandbox, start
+from herdboard import activity, merge, pi_extensions, pr_write, sandbox, start
 from herdboard.agent_review import reviewer_arguments
 from support.herdboard_agent_review import ReviewerHerdr
 from support.herdboard_merge import PullRequestTestCase
@@ -222,6 +222,19 @@ class RequestTests(PrWriteTestCase):
         stored = self.records()[self.card.ref]["pr_write"]
         self.assertEqual((stored["pane_id"], stored["own_pane"]), (result["pane_id"], True))
         self.assertEqual(self.log(), ["PR description requested from a pi writer agent."])
+
+    def test_a_pi_writer_without_worker_sandbox_runs_unsandboxed_and_warns(self):
+        self.fake.agent = False
+        with patch.object(pi_extensions, "pi_flags", return_value=frozenset()) as flags:
+            self.request()
+        flags.assert_called_once_with(self.worktree)
+        start_call = next(c for c in self.calls("agent", "start") if c[2].endswith("-pr"))
+        self.assertNotIn("--sandbox", start_call)
+        shown = [c for c in self.calls("notification", "show") if c[2] == "pi extensions missing"]
+        self.assertEqual(len(shown), 1)
+        self.assertIn("the reviewer runs with no sandbox", shown[0][-1])
+        logged = [e["message"] for e in activity.read(self.store.config, self.card.ref) if e["author"] == "herdboard"]
+        self.assertTrue(any(pi_extensions.EXTENSIONS_URL in message for message in logged))
 
     def test_a_claude_writer_starts_without_the_browser_rule(self):
         self.fake.agent = False

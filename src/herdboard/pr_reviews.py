@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from . import activity, agent_review, sandbox, start
+from . import activity, agent_review, pi_extensions, sandbox, start
 from .model import HerdboardError
 from .start import _lock, _read, _write, herdr, safe_key, state_dir
 
@@ -583,13 +583,26 @@ def _comments(session_id: str, kind: str) -> list[dict]:
 # The reviewer agent
 
 
-def reviewer_arguments(kind: str, prompt: str, checkout: Path, model: str | None, thinking: str | None) -> list[str]:
+def reviewer_arguments(
+    kind: str,
+    prompt: str,
+    checkout: Path,
+    model: str | None,
+    thinking: str | None,
+    pi_flags: frozenset[str] | None = None,
+) -> list[str]:
     """The reviewer's arguments after Herdr's `--`: any shell command in a sandbox that writes nothing, keeps
     `checkout` read-only and reaches only GitHub and the Hunk daemon. A PR is untrusted, so the reviewer gets no
-    terminal-browser: it runs outside the sandbox and can read any file."""
+    terminal-browser: it runs outside the sandbox and can read any file. `pi_flags` are pi's pi-extensions
+    flags: see `sandbox.pi_reviewer_options`."""
     if kind == "pi":
         options = (["--model", model] if model else []) + (["--thinking", thinking] if thinking else [])
-        return [*sandbox.pi_reviewer_options(None, checkout, browser=False, hunk=True), *options, "--", prompt]
+        return [
+            *sandbox.pi_reviewer_options(None, checkout, browser=False, hunk=True, flags=pi_flags),
+            *options,
+            "--",
+            prompt,
+        ]
     if kind == "codex":
         return [
             *sandbox.codex_reviewer_options("hb-pr-review", None, hunk=True),
@@ -731,6 +744,9 @@ def start_reviewer(key: str, record: dict, pr: PullRequest, kind: str, model: st
         if running:
             herdr("agent", "prompt", record["pane_id"], message)
         else:
+            checkout = Path(record["worktree_path"])
+            # A pull request has no card, so the warning has no log to go to.
+            flags = pi_extensions.check(checkout, pi_extensions.REVIEWER_FLAGS, "reviewer") if kind == "pi" else None
             herdr(
                 "agent",
                 "start",
@@ -740,7 +756,7 @@ def start_reviewer(key: str, record: dict, pr: PullRequest, kind: str, model: st
                 "--pane",
                 record["pane_id"],
                 "--",
-                *reviewer_arguments(kind, message, Path(record["worktree_path"]), model, thinking),
+                *reviewer_arguments(kind, message, checkout, model, thinking, flags),
                 tolerated=("timeout", "agent_not_ready"),
             )
             activity.record_pane_agent(record["pane_id"], kind)

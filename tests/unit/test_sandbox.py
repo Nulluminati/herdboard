@@ -232,6 +232,23 @@ class PiTests(unittest.TestCase):
         self.assertIn("127.0.0.1:5000", policy["network"]["allowedDomains"])
         self.assertEqual(policy["excludedCommands"], ["terminal-browser *"])
 
+    def test_options_follow_pis_flags(self):
+        unknown = sandbox.pi_reviewer_options(FOLDER, REPO, browser=False, hunk=False)
+        every = sandbox.pi_reviewer_options(
+            FOLDER, REPO, browser=False, hunk=False, flags=frozenset({"--approval-mode", "--sandbox"})
+        )
+        self.assertEqual(every, unknown)
+        tools = unknown[unknown.index("--tools") :]
+        no_sandbox = sandbox.pi_reviewer_options(
+            FOLDER, REPO, browser=False, hunk=False, flags=frozenset({"--approval-mode"})
+        )
+        self.assertEqual(no_sandbox, ["--approval-mode", "off", *tools])
+        no_approval = sandbox.pi_reviewer_options(
+            FOLDER, REPO, browser=False, hunk=False, flags=frozenset({"--sandbox"})
+        )
+        self.assertEqual(no_approval, unknown[2:])
+        self.assertEqual(sandbox.pi_reviewer_options(FOLDER, REPO, False, False, flags=frozenset()), tools)
+
 
 class CodexTests(unittest.TestCase):
     def test_profile_reads_everything_and_writes_the_folder(self):

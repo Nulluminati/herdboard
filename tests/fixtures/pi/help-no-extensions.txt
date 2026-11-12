@@ -1,0 +1,20 @@
+pi - AI coding assistant with read, bash, edit, write tools
+
+Usage:
+  pi [options] [--] [@files...] [messages...]
+
+Commands:
+  ...
+  --export <file> [output]       Export session file to HTML and exit
+  --list-models [search]         List available models (with optional fuzzy search)
+  --verbose                      Force verbose startup (overrides quietStartup setting)
+  --tui-mode <mode>              TUI mode: fullscreen (default) or regular
+  --approve, -a                  Trust project-local files for this run
+  --no-approve, -na              Ignore project-local files for this run
+  --offline                      Disable startup network operations (same as PI_OFFLINE=1)
+  --                             End option parsing; treat remaining arguments as messages/files
+  --help, -h                     Show this help
+  --version, -v                  Show version number
+
+Extensions can register additional flags (e.g., --plan from plan-mode extension).
+

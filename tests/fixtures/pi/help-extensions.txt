@@ -1,0 +1,29 @@
+pi - AI coding assistant with read, bash, edit, write tools
+
+Usage:
+  pi [options] [--] [@files...] [messages...]
+
+Commands:
+  pi install <source> [-l]     Install extension source and add to settings
+  pi remove <source> [-l]      Remove extension source from settings
+  pi uninstall <source> [-l]   Alias for remove
+  pi update [source|self|pi]   Update pi, extensions, or model catalogs
+  pi list                      List installed extensions from settings
+  pi config [-l]               Open TUI to enable/disable package resources (Tab switches scope)
+  ...
+
+Extensions can register additional flags (e.g., --plan from plan-mode extension).
+Extension CLI Flags:
+  --approval-mode <value>     Start Jev command review off or on in a main session (default on)
+  --approval-reject <value>   Ask or block when Jev rejects a command (default ask; parent controls workers)
+  --worker-readonly           Enforce investigation-only tools in a read-only worker
+  --bash-allow <value>        Comma-separated bash command allow list; every other shell call is blocked
+  --session-name-disable      Disable automatic session names
+  --recap-idle-seconds <value>Seconds after turn_end before the session recap is generated
+  --recap-focus-min-seconds <value>Minimum focus-out duration (seconds) before showing a recap on refocus
+  --recap-disable-focus       Disable DECSET ?1004 focus reporting (idle fallback still runs)
+  --recap-during-active       Allow focus-triggered recaps while an agent turn is still running
+  --recap-disable             Disable the automatic session recap
+  --sandbox <value>           Sandbox this session with an inline sandbox-runtime JSON policy, or 'project' for .pi/sandbox.json
+
+

@@ -15,7 +15,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from . import activity, attachments, sandbox
+from . import activity, attachments, pi_extensions, sandbox
 from . import start as start_module
 from .config import AGENTS, THINKING_LEVELS, thinking_levels
 from .model import HerdboardError
@@ -110,10 +110,13 @@ def launch_reviewer(
     name: str,
     output: str = "findings.md",
     also: tuple[str, ...] = (),
+    store=None,
+    ref: str | None = None,
 ) -> str:
     """Write `request` to `folder/request.md`, split a pane from `split_from` and start a sandboxed reviewer
     in it. The reviewer writes only `folder/<output>` and the files named in `also`. Returns the new pane's ID.
-    Writes nothing to the start record."""
+    Writes nothing to the start record. A pi reviewer without the pi-extensions gets a warning, in the log
+    of card `ref` too."""
     try:
         (folder / "request.md").write_text(request, encoding="utf-8")
     except OSError as error:
@@ -127,6 +130,9 @@ def launch_reviewer(
         + "".join(f" and {folder / name}" for name in also)
         + " and nowhere else."
     )
+    flags = (
+        pi_extensions.check(worktree, pi_extensions.REVIEWER_FLAGS, "reviewer", store, ref) if kind == "pi" else None
+    )
     # A startup prompt (such as Claude's folder trust check) waits for the user,
     # and a reviewer busy with its first message never looks ready: the worker watches it.
     try:
@@ -139,7 +145,7 @@ def launch_reviewer(
             "--pane",
             pane,
             "--",
-            *reviewer_arguments(kind, prompt, folder, worktree, model, thinking, browser=True),
+            *reviewer_arguments(kind, prompt, folder, worktree, model, thinking, browser=True, pi_flags=flags),
             tolerated=("timeout", "agent_not_ready"),
         )
     except HerdboardError:
@@ -158,9 +164,11 @@ def reviewer_arguments(
     model: str | None,
     thinking: str | None,
     browser: bool = False,
+    pi_flags: frozenset[str] | None = None,
 ) -> list[str]:
     """The reviewer's arguments after Herdr's `--`: any shell command in a sandbox that writes only `folder`,
-    never `repository`, and reaches only GitHub.
+    never `repository`, and reaches only GitHub. `pi_flags` are pi's pi-extensions flags: see
+    `sandbox.pi_reviewer_options`.
 
     `browser` lets terminal-browser run outside the sandbox: the reviewer may check pages, HTML files
     and servers that already run. The PR writer starts without it. Codex runs terminal-browser outside
@@ -168,7 +176,12 @@ def reviewer_arguments(
     request has the browser instructions, and the PR writer request forbids the browser."""
     if kind == "pi":
         options = (["--model", model] if model else []) + (["--thinking", thinking] if thinking else [])
-        return [*sandbox.pi_reviewer_options(folder, repository, browser, hunk=False), *options, "--", prompt]
+        return [
+            *sandbox.pi_reviewer_options(folder, repository, browser, hunk=False, flags=pi_flags),
+            *options,
+            "--",
+            prompt,
+        ]
     if kind == "codex":
         return [
             *sandbox.codex_reviewer_options("hb-review", folder, hunk=False),
@@ -378,7 +391,17 @@ class AgentReviewer(Reviewer):
             except OSError as error:
                 raise ReviewError(f"{reviews}: cannot write the review request: {error}", "io") from error
             pane = launch_reviewer(
-                worktree, kind, model, thinking, request, folder, record["pane_id"], "right", f"hb-{ref.lower()}-review"
+                worktree,
+                kind,
+                model,
+                thinking,
+                request,
+                folder,
+                record["pane_id"],
+                "right",
+                f"hb-{ref.lower()}-review",
+                store=self.store,
+                ref=ref,
             )
             record["agent_review"] = {
                 "folder": str(folder),

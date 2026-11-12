@@ -387,7 +387,17 @@ def run_round(store, ref, record, card, number: int) -> dict:
         )
         try:
             pane = launch_reviewer(
-                worktree, kind, model, thinking, request, lens_folder, split_from, direction, f"hb-{ref.lower()}-{lens}"
+                worktree,
+                kind,
+                model,
+                thinking,
+                request,
+                lens_folder,
+                split_from,
+                direction,
+                f"hb-{ref.lower()}-{lens}",
+                store=store,
+                ref=ref,
             )
         except HerdboardError as error:
             # One lens that does not start fails alone; the round goes on with the others.
@@ -831,6 +841,8 @@ def run_approver(store, ref, record, card, writer=None) -> dict:
         f"hb-{ref.lower()}-approver",
         output="verdict.md",
         also=(verification.APPROVAL_NAME,) if policy else (),
+        store=store,
+        ref=ref,
     )
     update(ref, folder, status="approving", panes=[pane])
     verdict_file = approver_folder / "verdict.md"

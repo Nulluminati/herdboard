@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from herdboard import agent_review, pr_reviews, sandbox, start
+from herdboard import agent_review, pi_extensions, pr_reviews, sandbox, start
 
 REPO = "acme/api"
 KEY = "acme/api#7"
@@ -531,6 +531,32 @@ class ReviewerTests(PrReviewTestCase):
         agent = self.fake.made("herdr", "agent", "start")[0]
         policy = json.loads(agent[agent.index("--sandbox") + 1])
         self.assertEqual(policy["filesystem"], {"denyWrite": [str(self.worktree)], "denyRead": sandbox.secret_paths()})
+
+    def test_a_pi_reviewer_without_worker_sandbox_runs_unsandboxed_and_warns(self):
+        record = self.record(status=None, reviewed_sha=None)
+        with (
+            patch.object(pi_extensions, "pi_flags", return_value=frozenset({"--approval-mode"})) as flags,
+            patch.object(start, "notify") as notify,
+        ):
+            pr_reviews.start_reviewer(KEY, record, self.pr(), "pi", None, None)
+        flags.assert_called_once_with(self.worktree)
+        agent = self.fake.made("herdr", "agent", "start")[0]
+        self.assertNotIn("--sandbox", agent)
+        self.assertEqual(agent[agent.index("--approval-mode") + 1], "off")
+        title, body = notify.call_args.args
+        self.assertIn("worker-sandbox", body)
+        self.assertIn("the reviewer runs with no sandbox", body)
+        self.assertIn(pi_extensions.EXTENSIONS_URL, body)
+
+    def test_a_pi_reviewer_with_worker_sandbox_does_not_warn(self):
+        record = self.record(status=None, reviewed_sha=None)
+        with patch.object(start, "notify") as notify:
+            pr_reviews.start_reviewer(KEY, record, self.pr(), "pi", None, None)
+        notify.assert_not_called()
+
+    def test_pi_reviewer_arguments_follow_pis_flags(self):
+        arguments = pr_reviews.reviewer_arguments("pi", "Read it", Path("/pr"), None, None, frozenset())
+        self.assertEqual(arguments[:-2], sandbox.pi_reviewer_options(None, Path("/pr"), False, True, frozenset()))
 
     def test_the_prompt_names_the_session_and_forbids_a_submit(self):
         text = pr_reviews.prompt_text(self.record(), self.pr())

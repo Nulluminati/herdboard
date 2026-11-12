@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from herdboard import agent_review, attachments, review, sandbox, start
+from herdboard import activity, agent_review, attachments, pi_extensions, review, sandbox, start
 from support.herdboard_agent_review import ReviewerHerdr
 from support.herdboard_cli import CliTestCase
 from support.herdboard_merge import MergeTestCase
@@ -367,6 +367,40 @@ class RequestTests(AgentReviewTestCase):
         options = sandbox.pi_reviewer_options(self.folder, self.worktree, browser=True, hunk=False)
         self.assertEqual(args[:-2], [*options, "--model", "zai/glm-5.3", "--thinking", "high"])
         self.assertEqual(args[-2], "--")
+
+    def pi_warnings(self):
+        return [c for c in self.fake.calls if c[:3] == ["notification", "show", "pi extensions missing"]]
+
+    def test_a_pi_reviewer_without_the_extensions_runs_unsandboxed_and_warns(self):
+        self.started()
+        self.commit(self.worktree, "a.txt", "a\n", "feat: a")
+        with patch.object(pi_extensions, "pi_flags", return_value=frozenset()) as flags:
+            self.request(reviewer="pi")
+        flags.assert_called_once_with(self.worktree)
+        args = self.reviewer_start()
+        for option in ("--sandbox", "--approval-mode"):
+            self.assertNotIn(option, args)
+        self.assertIn("--tools", args)
+        [shown] = self.pi_warnings()
+        self.assertIn("worker-sandbox", shown[-1])
+        self.assertIn("the reviewer runs with no sandbox", shown[-1])
+        self.assertIn(pi_extensions.EXTENSIONS_URL, shown[-1])
+        logged = [e["message"] for e in activity.read(self.store.config, self.card.ref) if e["author"] == "herdboard"]
+        self.assertTrue(any("the reviewer runs with no sandbox" in message for message in logged))
+
+    def test_a_pi_reviewer_with_the_extensions_does_not_warn(self):
+        self.started()
+        self.commit(self.worktree, "a.txt", "a\n", "feat: a")
+        self.request(reviewer="pi")
+        self.assertIn("--sandbox", self.reviewer_start())
+        self.assertEqual(self.pi_warnings(), [])
+
+    def test_claude_and_codex_reviewers_do_not_ask_pi(self):
+        self.started()
+        self.commit(self.worktree, "a.txt", "a\n", "feat: a")
+        with patch.object(pi_extensions, "pi_flags") as flags:
+            self.request(reviewer="claude")
+        flags.assert_not_called()
 
     def test_a_claude_model_goes_before_the_allowed_tools(self):
         self.started()

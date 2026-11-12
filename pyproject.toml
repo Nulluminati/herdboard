@@ -35,6 +35,7 @@ pythonpath = ["src", "tests"]
 addopts = ["--import-mode=importlib", "--strict-markers", "--strict-config", "-ra"]
 filterwarnings = ["error"]
 xfail_strict = true
+markers = ["real_pi_flags: run the real herdboard.pi_extensions.pi_flags, not the conftest stand-in"]
 
 [tool.ruff]
 line-length = 120

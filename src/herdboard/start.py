@@ -19,7 +19,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import attachments, verification
+from . import attachments, pi_extensions, verification
 from .activity import LOG_REF, record_pane_agent
 from .activity import append as activity_append
 from .brief import agent_message, brief_text, card_token
@@ -263,11 +263,21 @@ def agent_arguments(agent: str, message: str, model: str | None, thinking: str |
     ]
 
 
-def pi_approval_options() -> list[str]:
+def pi_approval_options(flags: frozenset[str] | None = None) -> list[str]:
     """pi Approval Mode that returns a Jev reject to the model as blocked, with no dialog. Uncertain commands still ask.
 
-    For the work agent and the planner only: reviewers build on agent_arguments and pass `--approval-mode off`."""
+    For the work agent and the planner only: reviewers build on agent_arguments and pass `--approval-mode off`.
+    `flags` are pi's pi-extensions flags (see `pi_extensions.pi_flags`): without the approval-mode extension
+    pi does not know the option, so there is none. None means unknown, and keeps it."""
+    if flags is not None and "--approval-reject" not in flags:
+        return []
     return ["--approval-reject", "block"]
+
+
+def pi_work_options(directory: Path, store=None, ref: str | None = None) -> list[str]:
+    """`pi_approval_options` for the pi in `directory`, after a warning when pi lacks the approval-mode extension."""
+    flags = pi_extensions.check(directory, pi_extensions.AGENT_FLAGS, "agent", store, ref)
+    return pi_approval_options(flags)
 
 
 def codex_auto_review_options() -> list[str]:
@@ -1226,7 +1236,7 @@ class Starter:
         persist()
         args = agent_arguments(agent, message, model, thinking)
         if agent == "pi":
-            args = [*pi_approval_options(), *args]
+            args = [*pi_work_options(Path(record["worktree_path"]), self.store, card.ref), *args]
         if agent == "codex":
             args = [*codex_auto_review_options(), *(["--add-dir", factory_folder] if factory_folder else []), *args]
         elif agent == "claude" and factory_folder:

@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from herdboard import activity, agent_review, attachments, merge, plan, review, start, verification
+from herdboard import activity, agent_review, attachments, merge, pi_extensions, plan, review, start, verification
 from herdboard.config import Config
 from herdboard.identity import repo_identity
 from herdboard.store import Store
@@ -192,6 +192,40 @@ class RequestTests(PlanTestCase):
     def test_pi_planner_blocks_jev_rejects_like_the_work_agent(self):
         args = plan.planner_arguments("pi", "task", Path("/plans"), None, None)
         self.assertEqual(args, [*start.pi_approval_options(), "--", "task"])
+
+    def test_pi_planner_arguments_follow_pis_flags(self):
+        for flags in (None, frozenset(pi_extensions.EXTENSION_FLAGS)):
+            with self.subTest(flags=flags):
+                args = plan.planner_arguments("pi", "task", Path("/plans"), None, None, flags)
+                self.assertEqual(args, ["--approval-reject", "block", "--", "task"])
+        self.assertEqual(plan.planner_arguments("pi", "task", Path("/plans"), None, None, frozenset()), ["--", "task"])
+
+    def pi_warnings(self):
+        return [c for c in self.fake.calls if c[:3] == ["notification", "show", "pi extensions missing"]]
+
+    def test_pi_planner_without_approval_mode_starts_and_warns(self):
+        with patch.object(pi_extensions, "pi_flags", return_value=frozenset()) as flags:
+            self.planner.plan(self.card.ref, agent="pi")
+        flags.assert_called_once_with(Path(self.record()["worktree_path"]))
+        call = self.planner_start()
+        self.assertNotIn("--approval-reject", call)
+        [shown] = self.pi_warnings()
+        self.assertIn("approval-mode", shown[-1])
+        self.assertIn(pi_extensions.EXTENSIONS_URL, shown[-1])
+        logged = [e["message"] for e in activity.read(self.config, self.card.ref) if e["author"] == "herdboard"]
+        self.assertTrue(any(pi_extensions.EXTENSIONS_URL in message for message in logged))
+
+    def test_pi_planner_with_approval_mode_does_not_warn(self):
+        self.planner.plan(self.card.ref, agent="pi")
+        self.assertIn("--approval-reject", self.planner_start())
+        self.assertEqual(self.pi_warnings(), [])
+
+    def test_claude_and_codex_planners_do_not_ask_pi(self):
+        for agent in ("claude", "codex"):
+            with self.subTest(agent=agent), patch.object(pi_extensions, "pi_flags") as flags:
+                card = self.store.add(self.board, f"Plan for {agent}")
+                self.planner.plan(card.ref, agent=agent)
+                flags.assert_not_called()
 
     def test_the_brief_has_the_card_where_to_write_and_how_to_plan(self):
         self.planner.plan(self.card.ref)

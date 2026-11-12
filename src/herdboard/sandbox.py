@@ -5,6 +5,9 @@ only its own folder (or nothing), and reach only GitHub over the shell network. 
 environment variable that looks like a credential. No approval judge runs: nobody
 answers a prompt in a reviewer pane. Web tools (Claude WebFetch, pi web_fetch, Codex live web
 search) and documentation MCP servers run outside the sandbox and only read.
+
+pi's sandbox comes from the worker-sandbox extension in pi-extensions. A pi reviewer without it runs with no
+sandbox, and herdboard warns about it (see `pi_extensions`).
 """
 
 from __future__ import annotations
@@ -143,12 +146,21 @@ def claude_reviewer_tools(writable: Path | None) -> list[str]:
     ]
 
 
-def pi_reviewer_options(writable: Path | None, read_only: Path, browser: bool, hunk: bool) -> list[str]:
-    """`--approval-mode off`, a `--sandbox` policy and the tool list."""
+def pi_reviewer_options(
+    writable: Path | None, read_only: Path, browser: bool, hunk: bool, flags: frozenset[str] | None = None
+) -> list[str]:
+    """`--approval-mode off`, a `--sandbox` policy and the tool list.
+
+    `flags` are pi's pi-extensions flags (see `pi_extensions.pi_flags`). pi exits on a flag it does not know,
+    so without the approval-mode extension there is no `--approval-mode off`, and without the worker-sandbox
+    extension there is no `--sandbox`: the reviewer then runs with no sandbox. None means unknown, and keeps
+    both."""
     domains = list(GITHUB_DOMAINS) + [f"127.0.0.1:{hunk_port()}"] * hunk
     policy = _policy(writable, read_only, domains, ["terminal-browser *"] * browser)
     tools = ",".join(PI_READ_TOOLS + ("write",) * bool(writable))
-    return ["--approval-mode", "off", "--sandbox", json.dumps(policy), "--tools", tools]
+    approval = ["--approval-mode", "off"] if flags is None or "--approval-mode" in flags else []
+    sandboxed = ["--sandbox", json.dumps(policy)] if flags is None or "--sandbox" in flags else []
+    return [*approval, *sandboxed, "--tools", tools]
 
 
 def codex_reviewer_options(name: str, writable: Path | None, hunk: bool) -> list[str]:

@@ -43,3 +43,14 @@ of real todo file with made-up text.
   the first heading.
 - `loose-text.md`: text lines that are not list items, before and after
   items, after an ATX heading, and a bare `----` line.
+
+## pi/
+
+Trimmed `pi --help` outputs from pi 1.5.2, for `herdboard.pi_extensions`.
+
+- `help-extensions.txt`: with the pi-extensions loaded. `Extension CLI Flags:`
+  lists `--approval-mode`, `--approval-reject` and `--sandbox`.
+- `help-no-extensions.txt`: from `pi --no-extensions --help`. No extension
+  flags.
+- `help-approval-mode-only.txt`: `help-extensions.txt` without the
+  `--approval-reject` and `--sandbox` lines.

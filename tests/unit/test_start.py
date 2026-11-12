@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from herdboard import start
+from herdboard import activity, pi_extensions, start
 from herdboard.config import Config, config_path
 from herdboard.identity import repo_identity
 from herdboard.store import Store
@@ -845,6 +845,42 @@ class StartTests(unittest.TestCase):
         self.assertEqual(args[:2], start.pi_approval_options())
         # pi reads options only before its own `--`.
         self.assertLess(args.index("--approval-reject"), args.index("--"))
+
+    def notifications(self):
+        return [call for call in self.fake.calls if call[:3] == ["notification", "show", "pi extensions missing"]]
+
+    def test_pi_without_approval_mode_starts_without_the_approval_options(self):
+        with patch.object(pi_extensions, "pi_flags", return_value=frozenset()) as flags:
+            self.starter.start(self.card.ref, agent="pi")
+        record = start._read(start.state_dir() / "starts.json")[self.card.ref]
+        flags.assert_called_once_with(Path(record["worktree_path"]))
+        args = self.agent_args()
+        self.assertNotIn("--approval-reject", args)
+        self.assertTrue(args[-1].startswith("Start work on herdboard card"))
+        [shown] = self.notifications()
+        self.assertIn("approval-mode", shown[-1])
+        self.assertIn("no Jev command review", shown[-1])
+        self.assertIn(pi_extensions.EXTENSIONS_URL, shown[-1])
+        [entry] = [e for e in activity.read(self.config, self.card.ref) if e["author"] == "herdboard"]
+        self.assertIn("approval-mode", entry["message"])
+        self.assertIn(pi_extensions.EXTENSIONS_URL, entry["message"])
+
+    def test_pi_with_approval_mode_or_a_failed_check_keeps_the_options_and_warns_not(self):
+        for flags in (frozenset(pi_extensions.EXTENSION_FLAGS), None):
+            with self.subTest(flags=flags), patch.object(pi_extensions, "pi_flags", return_value=flags):
+                self.fake.calls.clear()
+                card = self.store.add(self.board, f"Task {flags}")
+                self.starter.start(card.ref, agent="pi")
+                self.assertEqual(self.agent_args()[:2], ["--approval-reject", "block"])
+                self.assertEqual(self.notifications(), [])
+                self.assertEqual([e for e in activity.read(self.config, card.ref) if e["author"] == "herdboard"], [])
+
+    def test_claude_and_codex_starts_do_not_ask_pi(self):
+        for agent in ("codex", "claude"):
+            with self.subTest(agent=agent), patch.object(pi_extensions, "pi_flags") as flags:
+                card = self.store.add(self.board, f"Task for {agent}")
+                self.starter.start(card.ref, agent=agent)
+                flags.assert_not_called()
 
     def test_only_the_pi_work_agent_gets_the_approval_options(self):
         for agent in ("codex", "claude"):

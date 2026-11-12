@@ -16,7 +16,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import activity, attachments
+from . import activity, attachments, pi_extensions
 from . import start as start_module
 from .agent_review import _reviewer_status, start_worker
 from .brief import _one_line
@@ -151,15 +151,25 @@ class PlanError(HerdboardError):
         self.code = code
 
 
-def planner_arguments(kind: str, prompt: str, folder: Path, model: str | None, thinking: str | None) -> list[str]:
+def planner_arguments(
+    kind: str,
+    prompt: str,
+    folder: Path,
+    model: str | None,
+    thinking: str | None,
+    pi_flags: frozenset[str] | None = None,
+) -> list[str]:
     """The planner's arguments after Herdr's `--`: it reads the repository, may try code in the worktree,
     and writes the attachments.
 
     Each agent has the work agent's permissions plus the attachments folder: Claude auto mode, pi
     Approval Mode with all its tools that blocks Jev rejects, Codex auto-review with network. The user is
-    in the tab too."""
+    in the tab too. `pi_flags` are pi's pi-extensions flags: pi without approval-mode gets no Approval Mode."""
     if kind == "pi":
-        return [*start_module.pi_approval_options(), *start_module.agent_arguments(kind, prompt, model, thinking)]
+        return [
+            *start_module.pi_approval_options(pi_flags),
+            *start_module.agent_arguments(kind, prompt, model, thinking),
+        ]
     if kind == "codex":
         return [
             *start_module.codex_auto_review_options(),
@@ -453,6 +463,11 @@ class Planner:
             pane = created["root_pane"]["pane_id"]
             tab = created["root_pane"].get("tab_id") or (created.get("tab") or {}).get("tab_id")
             export_config(pane, self.config_file)
+            flags = (
+                pi_extensions.check(worktree, pi_extensions.AGENT_FLAGS, "agent", self.store, ref)
+                if kind == "pi"
+                else None
+            )
             # A startup prompt (such as Claude's folder trust check) waits for the user: the worker watches it.
             try:
                 herdr(
@@ -464,7 +479,7 @@ class Planner:
                     "--pane",
                     pane,
                     "--",
-                    *planner_arguments(kind, prompt, plan_file.parent, model, thinking),
+                    *planner_arguments(kind, prompt, plan_file.parent, model, thinking, flags),
                     tolerated=("timeout", "agent_not_ready"),
                 )
                 activity.record_pane_agent(pane, kind)

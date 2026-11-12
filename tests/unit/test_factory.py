@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
-from herdboard import activity, agent_review, attachments, factory, start, verification
+from herdboard import activity, agent_review, attachments, factory, pi_extensions, start, verification
 from herdboard.config import Config
 from herdboard.linear_states import refuse
 from herdboard.model import HerdboardError
@@ -485,6 +485,18 @@ class RoundTests(FactoryTestCase):
         self.assertTrue((self.folder / "round-1" / "code" / "branch.patch").read_text())
         state = self.state()
         self.assertEqual((state["round"], state["lenses"], state["status"]), (1, ["security", "code"], "reviewing"))
+
+    def test_a_pi_lens_without_worker_sandbox_warns_in_the_card_log(self):
+        self.write_plan(verified_plan(lenses="code"))
+        self.start_factory()
+        self.commit(self.worktree, "a.txt", "a\n", "feat: a")
+        with patch.object(pi_extensions, "pi_flags", return_value=frozenset()):
+            factory.run_round(self.store, self.card.ref, self.record(), self.card, 1)
+        [code] = self.lens_starts()
+        self.assertEqual(code[code.index("--kind") + 1], "pi")
+        self.assertNotIn("--sandbox", code)
+        logged = [e["message"] for e in activity.read(self.store.config, self.card.ref) if e["author"] == "herdboard"]
+        self.assertTrue(any("the reviewer runs with no sandbox" in message for message in logged))
 
     def test_the_next_round_gets_the_earlier_answers(self):
         self.write_plan(verified_plan(lenses="code"))

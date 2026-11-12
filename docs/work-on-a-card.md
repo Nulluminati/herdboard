@@ -79,7 +79,7 @@ When planning ends with a changed plan and the card's work agent still runs, the
 
 Codex planners use `workspace-write` with network access and the attachments folder as an extra writable directory. Writes there and in the worktree need no approval. Other approval requests go to Codex's automatic reviewer (`approvals_reviewer = "auto_review"`), which uses extra model calls. You stay in the tab for requests it denies. Codex work agents use the same options without the attachments folder. Codex keeps every `.git` folder read-only in `workspace-write`, so each `git add` and `git commit` of a work agent goes to the automatic reviewer.
 
-pi planners and work agents run Approval Mode with `--approval-reject block`. When Jev rejects a command, pi tells the agent that the command is blocked and shows no dialog. The agent takes another route. You still get the dialog for commands that Jev is uncertain about. pi has no sandbox in these sessions, so Approval Mode stays on.
+pi planners and work agents run Approval Mode with `--approval-reject block`. When Jev rejects a command, pi tells the agent that the command is blocked and shows no dialog. The agent takes another route. You still get the dialog for commands that Jev is uncertain about. pi has no sandbox in these sessions, so Approval Mode stays on. Approval Mode comes from the `approval-mode` extension in [pi-extensions](https://github.com/Nulluminati/pi-extensions). Without it, pi starts with no Jev command review, and herdboard shows a warning and writes it to the card's log. See [Agent permissions](agent-permissions.md).
 
 `--agent claude|pi|codex`, `--model`, `--thinking` and `--base BRANCH` choose the planner and its base. On the board, `P` asks for them.
 

@@ -15,7 +15,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from . import activity, merge
+from . import activity, merge, pi_extensions
 from . import start as start_module
 from .agent_review import _notify, _reviewer_status, reviewer_arguments, start_worker
 from .config import thinking_levels
@@ -172,6 +172,11 @@ def request(merger, card, ref, key, record, worktree: Path, base: str, rewrite_u
         ]["pane_id"]
         model = config.start_model if kind == config.start_agent else None
         thinking = config.start_thinking if config.start_thinking in thinking_levels(kind) else None
+        flags = (
+            pi_extensions.check(worktree, pi_extensions.REVIEWER_FLAGS, "reviewer", merger.store, ref)
+            if kind == "pi"
+            else None
+        )
         # A startup prompt waits for the user, and a busy writer never looks ready: the worker watches it.
         herdr(
             "agent",
@@ -182,7 +187,7 @@ def request(merger, card, ref, key, record, worktree: Path, base: str, rewrite_u
             "--pane",
             pane,
             "--",
-            *reviewer_arguments(kind, prompt_text(folder, ref), folder, worktree, model, thinking),
+            *reviewer_arguments(kind, prompt_text(folder, ref), folder, worktree, model, thinking, pi_flags=flags),
             tolerated=("timeout", "agent_not_ready"),
         )
         activity.record_pane_agent(pane, kind)

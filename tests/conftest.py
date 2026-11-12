@@ -7,4 +7,18 @@ before any test runs: no test calls GitHub. A test of the check removes the vari
 
 import os
 
+import pytest
+
 os.environ["HERDBOARD_NO_UPDATE_CHECK"] = "1"
+
+
+@pytest.fixture(autouse=True)
+def _pi_has_every_extension(request, monkeypatch):
+    """No test runs the real `pi --help`: pi reports every pi-extensions flag unless the test patches it.
+
+    A test of the check itself is marked `real_pi_flags` and fakes the command."""
+    if request.node.get_closest_marker("real_pi_flags"):
+        return
+    from herdboard import pi_extensions
+
+    monkeypatch.setattr(pi_extensions, "pi_flags", lambda directory: frozenset(pi_extensions.EXTENSION_FLAGS))
