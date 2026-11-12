@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import functools
-import importlib.metadata
 import re
 import subprocess
 import sys
@@ -47,7 +46,7 @@ from textual.widgets import (
 )
 from textual.worker import Worker, WorkerState
 
-from . import activity, agent_states, attachments, automations, factory, notes, pr_reviews, verification
+from . import activity, agent_states, attachments, automations, factory, notes, pr_reviews, updates, verification
 from . import merge as merge_module
 from . import start as start_module
 from .agent_review import AgentReviewer
@@ -82,6 +81,7 @@ from .promote_convert import promoted_identifier
 from .review import Reviewer
 from .start import Starter, codex_model_choices, mark_removed, pi_model_choices
 from .store import KEEP, BoardMeta, CardView, Store
+from .updates import herdboard_version
 from .views import LinearResult
 
 VIEWS = ["repo", "inbox", "all", "mine"]
@@ -2993,14 +2993,6 @@ TAB_ICONS = {"board": ("\uf0db", "▦"), "prs": ("\uf407", "⑂"), "notes": ("\u
 TAB_ACTIONS = {"pull_requests", "next_tab"}
 
 
-def herdboard_version() -> str:
-    """The installed herdboard version, or "" without package metadata."""
-    try:
-        return importlib.metadata.version("herdboard")
-    except importlib.metadata.PackageNotFoundError:
-        return ""
-
-
 class HeaderBar(Horizontal):
     """The top row: herdboard and the board or repository at the left, the view and the version at
     the right."""
@@ -3009,6 +3001,8 @@ class HeaderBar(Horizontal):
         super().__init__(id="header-bar")
         self.version = herdboard_version()
         self.place, self.view = place, view
+        # True when a newer herdboard release exists: the version then reads `v0.1.0 ↑ update`.
+        self.update = False
         self.plain = self._plain()
 
     def compose(self) -> ComposeResult:
@@ -3017,8 +3011,13 @@ class HeaderBar(Horizontal):
         yield Static(self.place, id="header-place")
         yield Static(self._right(), id="header-view")
 
+    def on_mount(self) -> None:
+        # The release check can end before or after this header mounts, also on a screen opened later.
+        self.watch(self.app, "update_available", self.show_update, init=True)
+
     def _right(self) -> str:
-        return "  ".join(part for part in (self.view, f"v{self.version}" if self.version else "") if part)
+        version = (f"v{self.version}" + (" ↑ update" if self.update else "")) if self.version else ""
+        return "  ".join(part for part in (self.view, version) if part)
 
     def _plain(self) -> str:
         return f"herdboard │ {self.place}" + (f" │ {self._right()}" if self._right() else "")
@@ -3029,6 +3028,14 @@ class HeaderBar(Horizontal):
         if self.is_mounted:
             self.query_one("#header-place", Static).update(Text(place, no_wrap=True, overflow="ellipsis"))
             self.query_one("#header-view", Static).update(self._right())
+
+    def show_update(self, available: bool = True) -> None:
+        """Show or hide `↑ update` after the version."""
+        self.update = available
+        self.plain = self._plain()
+        # The watch calls this from on_mount, before is_mounted is True but after compose.
+        for view in self.query("#header-view").results(Static):
+            view.update(self._right())
 
 
 # The least room that the tabs and the switch key's hint keep between them, before the hint takes its
@@ -5321,6 +5328,8 @@ class HerdboardApp(App):
     # The open pull request count of the last read, for the tab; None before the first read. Every tab bar
     # watches it, also the bars of the tabs that are installed but hidden.
     pr_count: reactive[int | None] = reactive(None)
+    # True when the release check at start found a newer herdboard release. Every header watches it.
+    update_available: reactive[bool] = reactive(False)
     CSS = (
         """
     /* The header row of the board and the pull requests: herdboard | board or repository, view, version. */
@@ -5690,6 +5699,18 @@ class HerdboardApp(App):
             self.fetch_linear()
             self.set_interval(self.linear_interval, self.fetch_linear)
         self.set_interval(SPINNER_SECONDS, self.spin)
+        if updates.check_enabled():
+            self.run_worker(self._check_release, thread=True, exit_on_error=False)
+
+    def _check_release(self) -> None:
+        """Ask GitHub for the latest release, in a worker thread. A failed check shows nothing."""
+        latest = updates.latest_release()
+        if latest and updates.is_newer(latest, herdboard_version()):
+            try:
+                self.call_from_thread(setattr, self, "update_available", True)
+            except RuntimeError:
+                # The board closed while the check ran.
+                pass
 
     # Busy cards
 

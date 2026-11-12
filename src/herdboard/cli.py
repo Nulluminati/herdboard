@@ -486,6 +486,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub.add_argument("--offline", action="store_true", help="skip Linear checks")
 
+    command("update", "install the latest herdboard release")
+
     sub = command("convert-store", "convert the old Markdown boards (inbox.md, projects/*.md) to board folders, once")
     sub.add_argument("--dry-run", action="store_true", help="print what the conversion does, and change nothing")
 
@@ -2316,6 +2318,18 @@ def _main(argv: list[str] | None) -> int:
             else:
                 print(render(result))
             return 1 if result["summary"]["error"] else 0
+        if args.command == "update":
+            # The update reads GitHub and Herdr, not the store, so it needs no configuration or board.
+            from . import updates
+
+            result = updates.update(updates.herdboard_version())
+            if as_json:
+                _emit_json(result)
+            elif result["updated"]:
+                print(f"Updated herdboard to v{result['latest']}. Reopen the board.")
+            else:
+                print(f"herdboard v{result['current']} is the latest release")
+            return 0
         ctx = _Context(args)
         # Every command reads or writes the store, so none may run on the old layout. Only
         # the conversion itself and doctor (above) work with it.

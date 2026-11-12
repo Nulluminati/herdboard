@@ -40,6 +40,7 @@
 | `herdboard init` | Create the board for the current repository |
 | `herdboard migrate <TODO.md> [--board] [--yes]` | Convert a free-form `TODO.md` into cards |
 | `herdboard doctor [--fix] [--offline]` | Check the boards, the config, Linear, the automations and the state files |
+| `herdboard update` | Install the latest herdboard release, for the Herdr plugin and the `herdboard` command. Only a GitHub install updates; in a linked clone, run `git pull` |
 | `herdboard convert-store [--dry-run]` | Convert the old Markdown boards to board folders, once. See [Convert old boards](files.md#convert-old-boards) |
 | `herdboard automation list` | List the automations, with the next due time and the last run |
 | `herdboard automation add --title T --schedule S [--board] [--body \| --body-file] [--type] [--tag ...] [--agent] [--model] [--thinking] [--may-merge-prs] [--factory [--factory-preset NAME]]` | Add an automation. Default board: `inbox`. `--agent` is claude, pi or codex; `--thinking` takes the agent's levels |

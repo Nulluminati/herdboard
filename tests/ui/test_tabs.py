@@ -176,6 +176,74 @@ class TabBarTests(unittest.IsolatedAsyncioTestCase):
                 header = app.screen.query_one(HeaderBar)
                 self.assertEqual(header.plain, "herdboard │ acme/api │ inbox  v0.3.1")
 
+    def check_on(self):
+        """Turn the release check on for one test; the test patches latest_release."""
+        env = patch.dict(os.environ)
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop("HERDBOARD_NO_UPDATE_CHECK", None)
+
+    async def test_the_header_shows_update_on_every_tab_when_a_newer_release_exists(self):
+        self.check_on()
+        with (
+            patch("herdboard.board.herdboard_version", return_value="0.3.1"),
+            patch("herdboard.updates.latest_release", return_value="0.3.2") as latest,
+        ):
+            app = self.app()
+            async with app.run_test(size=(160, 30)) as pilot:
+                await self.settle(app, pilot)
+                latest.assert_called_once_with()
+                header = app.screen.query_one(HeaderBar)
+                self.assertTrue(header.plain.endswith("│ inbox  v0.3.1 ↑ update"), header.plain)
+                self.assertEqual(str(app.screen.query_one("#header-view").render()), "inbox  v0.3.1 ↑ update")
+                for _tab in ("prs", "notes", "automations", "board"):
+                    await pilot.press("G")
+                    await self.settle(app, pilot)
+                    header = app.screen.query_one(HeaderBar)
+                    self.assertTrue(header.plain.endswith("  v0.3.1 ↑ update"), header.plain)
+                    self.assertIn("↑ update", str(app.screen.query_one("#header-view").render()))
+
+    async def test_the_header_shows_no_update_for_the_same_release(self):
+        self.check_on()
+        with (
+            patch("herdboard.board.herdboard_version", return_value="0.3.1"),
+            patch("herdboard.updates.latest_release", return_value="0.3.1") as latest,
+        ):
+            app = self.app()
+            async with app.run_test(size=(160, 30)) as pilot:
+                await self.settle(app, pilot)
+                latest.assert_called_once_with()
+                self.assertTrue(app.screen.query_one(HeaderBar).plain.endswith("│ inbox  v0.3.1"))
+
+    async def test_the_header_shows_no_update_when_the_check_fails(self):
+        self.check_on()
+        with (
+            patch("herdboard.board.herdboard_version", return_value="0.3.1"),
+            patch("herdboard.updates.latest_release", return_value=None),
+        ):
+            app = self.app()
+            async with app.run_test(size=(160, 30)) as pilot:
+                await self.settle(app, pilot)
+                self.assertTrue(app.screen.query_one(HeaderBar).plain.endswith("│ inbox  v0.3.1"))
+
+    async def test_the_variable_turns_the_release_check_off(self):
+        with (
+            patch.dict(os.environ, {"HERDBOARD_NO_UPDATE_CHECK": "1"}),
+            patch("herdboard.board.herdboard_version", return_value="0.3.1"),
+            patch("herdboard.updates.latest_release", return_value="9.0.0") as latest,
+        ):
+            app = self.app()
+            async with app.run_test(size=(160, 30)) as pilot:
+                await self.settle(app, pilot)
+                latest.assert_not_called()
+                self.assertTrue(app.screen.query_one(HeaderBar).plain.endswith("│ inbox  v0.3.1"))
+
+    async def test_the_header_shows_no_update_without_a_version(self):
+        with patch("herdboard.board.herdboard_version", return_value=""):
+            header = HeaderBar("acme-api", "repo")
+        header.update = True
+        self.assertEqual(header._right(), "repo")
+
     async def test_the_header_leaves_out_a_missing_version(self):
         from importlib.metadata import PackageNotFoundError
 
