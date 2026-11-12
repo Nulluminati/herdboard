@@ -10,6 +10,7 @@ import json
 import os
 import re
 import subprocess
+import urllib.error
 import urllib.request
 from collections.abc import Callable
 
@@ -58,6 +59,10 @@ def latest_release(timeout: float = 3.0) -> str | None:
     try:
         with urllib.request.urlopen(request, timeout=timeout) as reply:
             data = json.loads(reply.read())
+    except urllib.error.HTTPError as error:
+        # An HTTPError owns the reply body; close it, or Python warns with a ResourceWarning.
+        error.close()
+        return None
     except (OSError, ValueError, http.client.HTTPException):
         # URLError, HTTPError and timeouts are OSErrors; bad JSON is a ValueError; a broken reply, such as
         # a truncated body or a bad status line, is an HTTPException.

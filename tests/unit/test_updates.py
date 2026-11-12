@@ -40,6 +40,12 @@ class LatestReleaseTests(unittest.TestCase):
         error = urllib.error.HTTPError(updates.RELEASES_URL, 404, "Not Found", {}, None)
         self.assertIsNone(self.latest(side_effect=error)[0])
 
+    def test_closes_the_http_error(self):
+        # An HTTPError owns the reply body. Python warns with a ResourceWarning when it is not closed.
+        error = urllib.error.HTTPError(updates.RELEASES_URL, 404, "Not Found", {}, io.BytesIO(b"{}"))
+        self.latest(side_effect=error)
+        self.assertTrue(error.fp.closed)
+
     def test_returns_none_on_a_timeout(self):
         self.assertIsNone(self.latest(side_effect=TimeoutError("timed out"))[0])
 
