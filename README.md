@@ -7,6 +7,13 @@
 <p align="center">A kanban board inside Herdr for your todos and your Linear issues.<br>A card can start an agent, and herdboard reviews and merges its work.</p>
 
 <p align="center">
+  <a href="https://github.com/Nulluminati/herdboard/releases/latest"><img src="https://img.shields.io/github/v/release/Nulluminati/herdboard" alt="Latest release"></a>
+  <a href="https://github.com/Nulluminati/herdboard/actions/workflows/ci.yml"><img src="https://github.com/Nulluminati/herdboard/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11 or later">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Nulluminati/herdboard" alt="MIT License"></a>
+</p>
+
+<p align="center">
   <img src="docs/assets/board.png" alt="The herdboard board for the herdboard repository, with Backlog, Todo, In progress, Review and Done columns">
 </p>
 
