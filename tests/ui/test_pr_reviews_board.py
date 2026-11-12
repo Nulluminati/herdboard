@@ -355,7 +355,7 @@ class PullRequestBoardTests(unittest.IsolatedAsyncioTestCase):
             await pilot.press("enter")
             await pilot.pause()
             self.assertIsInstance(app.screen, ClaudeModelScreen)
-            await pilot.press("down", "down", "enter")
+            await pilot.press("down", "down", "down", "enter")
             await self.settle(app, pilot)
         self.service.review.assert_called_once_with(7, "claude", "sonnet", None)
         self.assertIn(("PR #7: claude (sonnet) reviews in workspace w9", None), self.notices)

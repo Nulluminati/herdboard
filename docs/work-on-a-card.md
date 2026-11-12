@@ -191,7 +191,7 @@ When the card's agent no longer runs, `review` starts a new one of the same kind
 
 The agent reviewer gets the commits since the base, the uncommitted changes and the untracked files. It starts in a split as `hb-<id>-review`, in the background: herdboard does not move you to the card's workspace. It may run any read-only command in a sandbox that writes only its review folder and reaches only GitHub. See [Agent permissions](agent-permissions.md). No card reviewer may run project code, tests or builds from the shell, or start servers. Every reviewer may use `terminal-browser` to check pages, HTML files and servers that already run. A background worker waits up to 30 minutes for the findings. Then it closes the reviewer pane and sends the findings to the card's agent. The agent answers with a table: one row for each finding, with its number, a short description, its severity, and whether the agent agrees or disagrees, and why. The agent logs its answer, changes no code, and waits for you. A Herdr notification tells you when the review is done or failed.
 
-On the board, `R` asks for Human, Agent or Both. For an agent review, it then asks for the reviewer and the model: `opus`, `sonnet` or `haiku` for Claude, the pi model list for pi, or the Codex model list for Codex.
+On the board, `R` asks for Human, Agent or Both. For an agent review, it then asks for the reviewer and the model: `fable`, `opus`, `sonnet` or `haiku` for Claude, the pi model list for pi, or the Codex model list for Codex.
 
 ## merge
 

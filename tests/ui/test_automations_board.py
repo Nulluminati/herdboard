@@ -244,7 +244,7 @@ class ListTests(AutomationsBoardTestCase):
                 await self.settle(app, pilot)
                 await pilot.press("enter")  # claude
                 await self.settle(app, pilot)
-                await pilot.press("down", "enter")  # opus
+                await pilot.press("down", "down", "enter")  # opus
                 await self.settle(app, pilot)
                 plan.assert_called_once_with(added.id, agent="claude", model="opus", thinking=None)
 
@@ -500,12 +500,12 @@ class FormTests(AutomationsBoardTestCase):
             async with app.run_test(size=(160, 40)) as pilot:
                 form = await self.open_form(app, pilot)
                 # "default" is the configured start agent, Claude.
-                self.assertEqual(self.options(form, "model"), ["default", "opus", "sonnet", "haiku"])
+                self.assertEqual(self.options(form, "model"), ["default", "fable", "opus", "sonnet", "haiku"])
                 self.assertEqual(self.options(form, "thinking"), ["default", *CLAUDE_THINKING_LEVELS])
                 for agent, models, levels in (
                     ("pi", ["zai/glm-5.3"], PI_THINKING_LEVELS),
                     ("codex", ["gpt-6.1"], CODEX_THINKING_LEVELS),
-                    ("claude", ["opus", "sonnet", "haiku"], CLAUDE_THINKING_LEVELS),
+                    ("claude", ["fable", "opus", "sonnet", "haiku"], CLAUDE_THINKING_LEVELS),
                 ):
                     with self.subTest(agent=agent):
                         form.query_one("#automation-agent", Select).value = agent

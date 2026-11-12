@@ -789,8 +789,8 @@ class StartBoardTests(unittest.IsolatedAsyncioTestCase):
             await pilot.press("enter")
             await pilot.pause()
             self.assertIsInstance(app.screen, ClaudeModelScreen)
-            self.assertEqual(app.screen.labels, ["claude default", "opus", "sonnet", "haiku"])
-            await pilot.press("down", "enter")
+            self.assertEqual(app.screen.labels, ["claude default", "fable", "opus", "sonnet", "haiku"])
+            await pilot.press("down", "down", "enter")
             await app.workers.wait_for_complete()
             await pilot.pause()
         self.agent_review.assert_called_once_with(
@@ -830,7 +830,7 @@ class StartBoardTests(unittest.IsolatedAsyncioTestCase):
             await pilot.press("enter")
             await pilot.pause()
             self.assertIsInstance(app.screen, ClaudeModelScreen)
-            await pilot.press("down", "enter")
+            await pilot.press("down", "down", "enter")
             await app.workers.wait_for_complete()
             await pilot.pause()
         self.plan.assert_called_once_with(self.card.ref, agent="claude", model="opus", thinking=None)
@@ -992,15 +992,34 @@ class StartBoardTests(unittest.IsolatedAsyncioTestCase):
             await pilot.pause()
         self.assertIn(("No hunk", "error"), notices)
 
-    async def test_claude_skips_the_model_dialog(self):
+    async def test_claude_default_starts_with_no_model(self):
         app = self.app()
         async with app.run_test() as pilot:
             await pilot.press("S")
             await pilot.pause()
             await pilot.press("enter")
+            await pilot.pause()
+            self.assertIsInstance(app.screen, ModelScreen)
+            await pilot.press("enter")
             await app.workers.wait_for_complete()
             await pilot.pause()
         self.callback.assert_called_with(self.card.ref, "claude")
+
+    async def test_choose_a_claude_model_and_effort(self):
+        app = self.app()
+        async with app.run_test() as pilot:
+            await pilot.press("S")
+            await pilot.pause()
+            await pilot.press("enter")
+            await pilot.pause()
+            screen = app.screen
+            self.assertIsInstance(screen, ModelScreen)
+            self.assertEqual(screen.labels, ["claude default", "fable", "opus", "sonnet", "haiku"])
+            screen.query_one("#thinking").value = "xhigh"
+            await pilot.press("down", "enter")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+        self.callback.assert_called_with(self.card.ref, "claude", model="fable", thinking="xhigh")
 
     async def test_refresh_marks_removed_worktree_without_board_change(self):
         from herdboard import start

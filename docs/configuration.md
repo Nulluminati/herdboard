@@ -77,7 +77,7 @@ Press `c` to open configuration. It has two tabs. Switch tabs with a click, or f
 - **Global (all boards)** sets values in the config file: theme, agent, model, thinking level, merge mode, icons, tags, cards and the [details pane](work-on-a-card.md#details-pane). It works outside a repository too.
 - **Current board** shows the board name. It sets the board's merge mode, linked Linear projects and pinned issues in the board's `board.toml`. Without a repository board, it tells you how to create one.
 
-The model list is the list that a start offers. Claude offers opus, sonnet and haiku. pi offers `pi_models`, else pi's `enabledModels`. Codex offers `codex_models`, else models with `visibility = "list"` in `~/.codex/models_cache.json`. Its default label reads `model` and `model_reasoning_effort` from `~/.codex/config.toml`.
+The model list is the list that a start offers. Claude offers fable, opus, sonnet and haiku. pi offers `pi_models`, else pi's `enabledModels`. Codex offers `codex_models`, else models with `visibility = "list"` in `~/.codex/models_cache.json`. Its default label reads `model` and `model_reasoning_effort` from `~/.codex/config.toml`.
 
 "Agent default" removes `start_model`, so the agent uses its own default. A saved model outside the list stays as "current configured model". A change of agent resets the model to "Agent default". The thinking control follows the agent's levels.
 

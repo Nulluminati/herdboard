@@ -1991,7 +1991,7 @@ class ReviewKindScreen(ModalBase):
 class ClaudeModelScreen(ModalBase):
     """Choose the model of a Claude reviewer. It returns `(model,)`, where None is Claude's default."""
 
-    MODELS = (None, "opus", "sonnet", "haiku")
+    MODELS = (None, "fable", "opus", "sonnet", "haiku")
 
     def __init__(self):
         super().__init__()
@@ -7124,19 +7124,17 @@ class HerdboardApp(App):
     def _chosen_agent(self, ref: str, agent: str | None) -> None:
         if agent is None:
             return
-        if agent == "claude":
-            self._start_card(ref, agent)
-            return
 
         def chosen(choice: tuple[str | None, str | None] | None) -> None:
             if choice is not None:
                 self._start_card(ref, agent, *choice)
 
-        screen = (
-            ModelScreen(*codex_model_choices(self.store.config), agent=agent)
-            if agent == "codex"
-            else pi_model_screen(self.store.config)
-        )
+        if agent == "claude":
+            screen = ModelScreen(None, list(ClaudeModelScreen.MODELS[1:]), agent=agent)
+        elif agent == "codex":
+            screen = ModelScreen(*codex_model_choices(self.store.config), agent=agent)
+        else:
+            screen = pi_model_screen(self.store.config)
         self.push_screen(screen, chosen)
 
     def action_detail(self) -> None:

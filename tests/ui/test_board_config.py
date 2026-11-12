@@ -663,7 +663,7 @@ class ConfigScreenTests(BoardTestCase):
             await settle(pilot)
             screen = await self.open_config(pilot)
             model, thinking = screen.query_one("#config-model"), screen.query_one("#config-thinking")
-            self.assertEqual(self.options(model), ["default", "opus", "sonnet", "haiku"])
+            self.assertEqual(self.options(model), ["default", "fable", "opus", "sonnet", "haiku"])
             self.assertEqual(self.labels(model)[0], "Agent default")
             self.assertEqual(model.value, "sonnet")
             self.assertEqual(self.options(thinking), ["default", *CLAUDE_THINKING_LEVELS])
