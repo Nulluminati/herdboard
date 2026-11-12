@@ -30,6 +30,8 @@ from .agent_review import (
     REVIEWERS,
     _reviewer_status,
     capture_change,
+    heading_text,
+    is_none_bullet,
     launch_reviewer,
     read_change,
     request_text,
@@ -138,19 +140,12 @@ def approver_kind(config, builder: str) -> str:
 SECTIONS = ("Confirmed problems", "Risks and questions")
 
 
-def _heading_text(line: str) -> str:
-    """A heading's text without its `#`s, `*` or `_` emphasis, spaces, trailing colon or case.
-
-    `## Confirmed problems:`, `# Confirmed problems` and `**Confirmed problems**` all give `confirmed problems`."""
-    return line.strip().lstrip("#").strip(" \t*_").rstrip(":").strip(" \t*_").casefold()
-
-
 def _is_heading(line: str) -> bool:
     """A section boundary: a `## ` heading, a findings section's heading in any style,
     or a lens's `# <lens>` heading in a merged round file.
 
     Another `#` line, such as a note or a shell comment, stays inside its section."""
-    if line.startswith("## ") or _heading_text(line) in {name.casefold() for name in SECTIONS}:
+    if line.startswith("## ") or heading_text(line) in {name.casefold() for name in SECTIONS}:
         return True
     words = line[2:].split() if line.startswith("# ") else []
     return bool(words) and words[0] in LENSES
@@ -161,10 +156,9 @@ def _section(text: str, heading: str) -> list[str]:
     lines, inside = [], False
     for line in text.splitlines():
         if _is_heading(line):
-            inside = _heading_text(line) == heading.casefold()
+            inside = heading_text(line) == heading.casefold()
             continue
-        # A reviewer may write "- None." in an empty section.
-        if inside and line.startswith("- ") and line[2:].strip().rstrip(".").casefold() != "none":
+        if inside and line.startswith("- ") and not is_none_bullet(line):
             lines.append(line)
     return lines
 

@@ -413,6 +413,10 @@ class AgentReviewer(Reviewer):
         }
 
 
+# The headings of a findings file, as `heading_text` gives them.
+FINDINGS_HEADINGS = {"confirmed problems", "risks and questions", "verification limits"}
+
+
 def _reviewer_status(pane: str) -> str | None:
     found = herdr("agent", "get", pane, tolerated=("agent_not_found", "pane_not_found"))
     return found["agent"].get("agent_status") if found else None
@@ -436,13 +440,26 @@ def _wait_for_findings(findings: Path, pane: str, kind: str) -> None:
         time.sleep(POLL_SECONDS)
 
 
+def heading_text(line: str) -> str:
+    """A heading's text without its `#`s, `*` or `_` emphasis, spaces, trailing colon or case.
+
+    `## Confirmed problems:`, `# Confirmed problems` and `**Confirmed problems**` all give `confirmed problems`."""
+    return line.strip().lstrip("#").strip(" \t*_").rstrip(":").strip(" \t*_").casefold()
+
+
+def is_none_bullet(line: str) -> bool:
+    """A reviewer may write "- None." in an empty section. It is not a finding."""
+    return line[2:].strip().rstrip(".").casefold() == "none"
+
+
 def _count_findings(findings: Path) -> int:
-    """The `- ` lines of the findings. The lines under Verification limits are not findings."""
+    """The `- ` lines of the findings. The lines under Verification limits and a "- None." line are not findings."""
     count, limits = 0, False
-    for line in findings.read_text(encoding="utf-8").splitlines():
-        if line.startswith("## "):
-            limits = line[3:].strip().casefold() == "verification limits"
-        elif line.startswith("- ") and not limits:
+    for line in findings.read_text(encoding="utf-8", errors="replace").splitlines():
+        heading = heading_text(line)
+        if line.startswith("## ") or heading in FINDINGS_HEADINGS:
+            limits = heading == "verification limits"
+        elif line.startswith("- ") and not limits and not is_none_bullet(line):
             count += 1
     return count
 

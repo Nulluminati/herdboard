@@ -286,6 +286,29 @@ class RequestTests(AgentReviewTestCase):
         )
         self.assertEqual(agent_review._count_findings(findings), 2)
 
+    def test_a_verification_limit_in_another_heading_style_is_not_counted(self):
+        findings = self.root / "findings.md"
+        for heading in ("## Verification limits:", "**Verification limits**", "# Verification Limits"):
+            with self.subTest(heading=heading):
+                findings.write_text(
+                    "## Confirmed problems\n- [high] a.py:1: bug.\n\n## Risks and questions\n- a.py:2: why?\n\n"
+                    f"{heading}\n- The tests could not run.\n- No display.\n"
+                )
+                self.assertEqual(agent_review._count_findings(findings), 2)
+
+    def test_a_none_bullet_is_not_counted_as_a_finding(self):
+        findings = self.root / "findings.md"
+        findings.write_text(
+            "## Confirmed problems\n- None.\n\n## Risks and questions\n- a.py:2: why?\n- none\n\n"
+            "## Verification limits\n- None.\n"
+        )
+        self.assertEqual(agent_review._count_findings(findings), 1)
+
+    def test_a_findings_file_that_is_not_utf8_is_counted(self):
+        findings = self.root / "findings.md"
+        findings.write_bytes(b"## Confirmed problems\n- a.py:1: bad byte \xff.\n")
+        self.assertEqual(agent_review._count_findings(findings), 1)
+
     def test_the_request_separates_proof_concerns_and_limits(self):
         record = {"ref": self.card.ref, "worktree_path": str(self.repo), "branch": "test"}
         text = agent_review.request_text(self.card, record, "main", self.root, [])
