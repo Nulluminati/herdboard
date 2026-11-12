@@ -10,6 +10,7 @@ pyproject.toml, uv.lock    # the herdboard package and its dev tools
 src/herdboard/             # the package
 bin/                       # scripts that the manifest commands run
 skills/herdboard/SKILL.md  # agent skill, installed with the skills CLI
+skills/herdboard-release/  # maintainer skill: cut a release with bin/release.py (docs/releasing.md)
 docs/                      # design notes and live test checklists
 tests/unit/                # tests with no Textual pilot
 tests/ui/                  # Textual pilot tests (run_test)
@@ -48,3 +49,4 @@ uv run pre-commit install          # once per clone: ruff before each commit
 - Claude's and pi's reviewer sandbox writes the working directory unless `denyWrite` names it. Name the repository there.
 - `terminal-browser` splits panes through the Herdr socket, so it must run outside a reviewer sandbox. Claude and pi exclude it with `excludedCommands`. Codex runs it outside with a rule in `~/.codex/rules/`, not by allowing the socket: with the socket allowed, `herdr pane run` lets any command escape the sandbox.
 - The reviewer sandbox options live in `src/herdboard/sandbox.py`. The peer-review plugin in `Nulluminati/herdr-extensions` keeps a hand copy in `plugins/peer-review/bin/peer_review.py`. No test checks that the two match, so change both.
+- The board asks GitHub for the latest release at start. `tests/conftest.py` sets `HERDBOARD_NO_UPDATE_CHECK=1` for every test; a test of the check removes it and patches `herdboard.updates.latest_release`.

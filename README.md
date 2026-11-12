@@ -21,13 +21,18 @@ Press `s` on a card and herdboard opens a Git worktree for it, then hands the ca
 You need Herdr 0.9 or later, `uv`, and Python 3.11 or later. To start work on a card, you also need Claude Code, pi or Codex.
 
 ```bash
-git clone git@github.com:Nulluminati/herdboard.git ~/Projects/herdboard
-herdr plugin link ~/Projects/herdboard
-uv tool install "git+ssh://git@github.com/Nulluminati/herdboard"
+herdr plugin install Nulluminati/herdboard
+uv tool install "git+https://github.com/Nulluminati/herdboard"
 npx skills add Nulluminati/herdboard@herdboard -g -y
 ```
 
-The repository is private, so the commands use SSH and need a GitHub account with access to it. To work on herdboard from the clone, run `uv tool install -e ~/Projects/herdboard` instead of the third command.
+To work on herdboard itself, link a clone instead of the first two commands:
+
+```bash
+git clone https://github.com/Nulluminati/herdboard.git ~/Projects/herdboard
+herdr plugin link ~/Projects/herdboard
+uv tool install -e ~/Projects/herdboard
+```
 
 The board pane runs through `uv` from the plugin folder, so it works without the `herdboard` command. Agents need the command on the path.
 
@@ -48,6 +53,16 @@ Optional tools:
 - The hunkdiff Herdr plugin (`jhochenbaum.hunkdiff`), for review in Hunk
 - The GitHub CLI (`gh`), signed in, for pull requests
 - Hunk 0.23 or later with the `hunk-gh-review` extension, for pull request reviews
+
+### Update
+
+When a newer release exists, the board header shows `↑ update` after the version. Run:
+
+```bash
+herdboard update
+```
+
+It installs the latest release tag for the Herdr plugin and the `herdboard` command. Reopen the board after it. In a linked clone, run `git pull` in the clone instead. Set `HERDBOARD_NO_UPDATE_CHECK=1` to stop the board from asking GitHub at start.
 
 ## Quick start
 
@@ -76,6 +91,7 @@ Press `?` on the board for every key.
 | [Commands](docs/commands.md) | Every `herdboard` command, `migrate` and `doctor` |
 | [Configuration](docs/configuration.md) | `config.toml`, the configuration dialog, thinking levels and icons |
 | [Board files](docs/files.md) | The file format, the state folder and how herdboard writes |
+| [Releasing](docs/releasing.md) | How a maintainer cuts a release: the skill, `bin/release.py` and the Release workflow |
 
 ## Known limits
 
