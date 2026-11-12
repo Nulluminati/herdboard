@@ -1,0 +1,29 @@
+name: Release
+
+# bin/release.py pushes the tag vX.Y.Z. This workflow checks that the tag matches the versions in
+# pyproject.toml and herdr-plugin.toml, and publishes a GitHub Release with the CHANGELOG.md section.
+"on":
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check the versions and write the release notes
+        env:
+          TAG: ${{ github.ref_name }}
+        run: python3 bin/release_notes.py "${TAG#v}" > notes.md
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --verify-tag --title "$TAG" --notes-file notes.md
