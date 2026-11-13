@@ -212,10 +212,15 @@ Errors are JSON on stdout: `{"error": {"code": "...", "message": "..."}}`. Exit 
 | `no_state` | No workflow state of the issue's team maps to that column. Ask the user for another column. |
 | `verification_plan_required` | A factory start needs a plan with a `herdboard-verification` block. Nothing started. Tell the user to plan the card (`P` on the board, or `plan <id>`). |
 | `verification_plan_invalid` | The plan's `herdboard-verification` block is malformed; the message names the field. Nothing started. Tell the user the message. |
+| `unknown_preset` | No factory preset has that name. The message lists the presets. Use one of them, or ask the user. |
+| `factory_running` | A factory run of the card still runs, so `review --agent` or `merge` must wait. Tell the user. Do not stop the run unless they ask. |
+| `not_running` | The card has no factory run, so `factory <id>` has nothing to show or stop. Tell the user. |
 | `agent_edit_denied` | You are the card's agent, and the card text is the user's. Record the change with `log` instead. |
 | `linear_edit` | herdboard does not edit Linear issues. Tell the user to edit it in Linear. |
 | `confirmation_required` | `delete` needs `--yes`. `unarchive` needs it when the card's parent is archived too, because the parent comes back with it. Ask the user first, then run it with `--yes`. |
 | `linear_delete` | herdboard does not delete Linear issues. Tell the user to delete it in Linear. |
+| `codex_missing` | `mockup` needs the `codex` CLI, logged in with a ChatGPT account. Tell the user. |
+| `no_image`, `timeout` | Codex made no mockup image, or made none in 10 minutes. Tell the user the message. |
 | `unknown_type` | The type is not in the `types` setting. The message lists the types. Use one of them, or ask the user. |
 | `usage` | The arguments are wrong. Use only the forms in this skill, or read `herdboard <command> --help`. Do not guess options. |
 | `io` | herdboard could not read or write a file or folder. Tell the user the message. |
@@ -236,6 +241,7 @@ Errors are JSON on stdout: `{"error": {"code": "...", "message": "..."}}`. Exit 
 | `already_promoted` | The todo already has a Linear issue (its `promoted` field, shown as `→ ENG-123`). Tell the user. |
 | `not_a_todo` | `promote` takes a todo, not a Linear issue. |
 | `checkout_unknown` | `start` does not know where the repository is. Ask the user for the path, then use `--checkout PATH`. |
+| `invalid_branch` | The `--base` value is not a valid Git branch name. Ask the user for a local branch. |
 | `base_unknown` | The base is not a local branch, or the checkout has no branch, or an old start record has no base. Ask the user which local branch to use, then run `start` with `--base BRANCH`. |
 | `upstream_failed` | Git could not set the base as the branch upstream. Tell the user the message. Running `start` again retries. |
 | `not_started` | The card has no worktree from `start`, or it was removed. Tell the user to run `start` first. |
@@ -277,4 +283,7 @@ Errors are JSON on stdout: `{"error": {"code": "...", "message": "..."}}`. Exit 
 | `bad_schedule` | The schedule text is not one of the forms in "Automations". The message lists them. Fix the text, or ask the user. |
 | `unknown_board` | The automation's board does not exist. Run `list` for the board names, or ask the user. |
 | `unsupported_platform`, `herdr_not_found`, `herdboard_not_found`, `timer_failed` | `automation timer` works on Linux (systemd) and macOS (launchd), and needs `herdr` and `herdboard` on the PATH. Tell the user the message. |
+| `update_check_failed` | `update` could not read the latest release from GitHub. Tell the user the message. |
+| `update_unsupported` | herdboard is a linked clone, not a GitHub install. Tell the user to run `git pull` in the clone. |
+| `update_failed` | A command of `update` failed. Tell the user the message. It says what to run when only the Herdr plugin was updated. |
 | `herdr_unavailable`, `herdr_error` | `start` needs a running Herdr, or a Herdr command failed. Tell the user the message. Running `start` again continues from the step that failed. |

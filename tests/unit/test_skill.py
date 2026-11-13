@@ -170,6 +170,9 @@ class SkillTests(unittest.TestCase):
         known |= {"no_pr", "no_description"}
         known |= {"no_repository", "new_repo_family", "path_exists", "new_repo_failed"}
         known |= {"verification_plan_required", "verification_plan_invalid"}
+        known |= {"unknown_preset", "factory_running", "not_running", "invalid_branch"}
+        known |= {"codex_missing", "no_image", "timeout"}
+        known |= {"update_check_failed", "update_unsupported", "update_failed"}
         known |= {ArchivedError.code, CardActiveError.code, cli.LinearArchiveError.code, "has_sub_cards"}
         known.add(UnknownTypeError.code)
         known |= {
