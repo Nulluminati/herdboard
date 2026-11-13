@@ -31,7 +31,7 @@ The script checks first and changes nothing when a check fails:
 - The working tree has no change other than `CHANGELOG.md`.
 - The branch is `main`, and `main` equals `origin/main` after a fetch.
 - The tag `vX.Y.Z` does not exist.
-- `CHANGELOG.md` has the section `## [X.Y.Z] - YYYY-MM-DD`.
+- `CHANGELOG.md` has the section `## [X.Y.Z] - YYYY-MM-DD`, and the section is not empty.
 
 Then it writes the version in `pyproject.toml` and `herdr-plugin.toml`, runs `uv lock`, and commits the three files and `CHANGELOG.md` as `chore(release): vX.Y.Z`. It creates the annotated tag `vX.Y.Z` and pushes `main` and the tag. When a push fails, the commit and the tag stay; the message gives the push command to finish.
 

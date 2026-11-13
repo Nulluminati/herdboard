@@ -8,7 +8,7 @@ herdboard: a kanban board inside Herdr for local todos and Linear issues, and a 
 herdr-plugin.toml          # Herdr manifest; id is "nulluminati.herdboard"
 pyproject.toml, uv.lock    # the herdboard package and its dev tools
 src/herdboard/             # the package
-bin/                       # scripts that the manifest commands run
+bin/                       # scripts that the manifest commands run, and the release scripts
 skills/herdboard/SKILL.md  # agent skill, installed with the skills CLI
 skills/herdboard-release/  # maintainer skill: cut a release with bin/release.py (docs/releasing.md)
 docs/                      # design notes and live test checklists
