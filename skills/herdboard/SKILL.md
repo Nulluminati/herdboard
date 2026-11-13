@@ -97,6 +97,7 @@ Ask the user first before these. They change shared Linear data, open workspaces
 - `delete <id> --yes` (removes a todo for good; Linear issues cannot be deleted here).
 - `archive --done` (archives every card in the board's done column).
 - `link`, `pin`, `init`, `migrate --yes`, `doctor --fix`, `convert-store`.
+- `update` (installs the latest herdboard release for the Herdr plugin and the `herdboard` command).
 - Every `automation` command except `automation list`. Automations spawn cards and start agents on a schedule; change one only when the user asks.
 
 ```bash
