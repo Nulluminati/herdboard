@@ -15,6 +15,9 @@ All notable changes to herdboard are in this file. The format follows
 
 - `herdboard update` now updates a Herdr plugin that is older than the
   `herdboard` command. It compared only the command's version with the release.
+- `herdboard automation pause`, `resume` and `edit` now work on an automation
+  whose board has no repository or is gone. herdboard checks the board only
+  when a change sets the board or turns on factory mode.
 
 ## [0.2.0] - 2026-11-11
 

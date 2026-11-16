@@ -215,6 +215,32 @@ class StorageTests(AutomationTestCase):
         self.assertEqual(raised.exception.code, "usage")
         self.assertEqual([item.board for item in automations.load(self.config)], ["inbox"])
 
+    def saved_on(self, board):
+        """Save an automation that points at `board` without the checks of `add`."""
+        item = automations.Automation(
+            id="a9z9", title="Nightly check", schedule="every day", board=board, body="", tags=[], type=None
+        )
+        automations.save(self.config, [item])
+        return item
+
+    def test_a_saved_board_without_a_repository_does_not_block_pause_or_unrelated_edits(self):
+        for board in (self.plain_board(), "gone"):
+            with self.subTest(board=board):
+                saved = self.saved_on(board)
+                self.assertFalse(automations.set_enabled(self.store, saved.id, False).enabled)
+                self.assertTrue(automations.set_enabled(self.store, saved.id, True).enabled)
+                edited = automations.edit(self.store, saved.id, title="New title")
+                self.assertEqual((edited.title, edited.board), ("New title", board))
+                self.assertEqual(automations.edit(self.store, saved.id, board="inbox").board, "inbox")
+
+    def test_a_saved_board_without_a_repository_refuses_factory_mode(self):
+        saved = self.saved_on(self.plain_board())
+        with self.assertRaises(HerdboardError) as raised:
+            automations.edit(self.store, saved.id, factory=True)
+        self.assertEqual(raised.exception.code, "usage")
+        self.assertIn("Board plain has no repository", str(raised.exception))
+        self.assertFalse(automations.get(self.config, saved.id).factory)
+
     def test_claude_takes_its_own_thinking_levels(self):
         added = self.add(agent="claude", thinking="max")
         self.assertEqual((added.agent, added.thinking), ("claude", "max"))

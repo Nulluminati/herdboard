@@ -335,8 +335,10 @@ def _new_id(config: Config, taken: set[str]) -> str:
             return candidate
 
 
-def _check(store, item: Automation, *, check_preset: bool = True) -> Automation:
-    """Check every field before a write. Returns the automation with the type's configured name."""
+def _check(store, item: Automation, *, check_preset: bool = True, check_board: bool = True) -> Automation:
+    """Check every field before a write. Returns the automation with the type's configured name.
+    A change that keeps the saved preset or board passes False for it, so a preset or a board that
+    went bad after the save does not block a pause or an unrelated edit."""
     config = store.config
     title = " ".join(item.title.split())
     if not title:
@@ -361,7 +363,7 @@ def _check(store, item: Automation, *, check_preset: bool = True) -> Automation:
             raise AutomationError(f"Unknown factory preset {item.factory_preset!r}", "usage")
     if item.factory and item.board == "inbox":
         raise AutomationError("A factory automation needs a repository board.", "usage")
-    if item.board != "inbox":
+    if check_board and item.board != "inbox":
         try:
             path = store.resolve_board(item.board)
         except NotFoundError as error:
@@ -452,7 +454,13 @@ def _change(store, automation_id: str, change, saved=None) -> tuple[Automation, 
         for index, item in enumerate(current):
             if item.id == automation_id:
                 changed = change(item)
-                changed = _check(store, changed, check_preset=changed.factory_preset != item.factory_preset)
+                changed = _check(
+                    store,
+                    changed,
+                    check_preset=changed.factory_preset != item.factory_preset,
+                    # Factory mode needs a repository board, so a change that turns it on checks the board too.
+                    check_board=changed.board != item.board or (changed.factory and not item.factory),
+                )
                 current[index] = changed
                 save(store.config, current)
                 if saved is not None:
