@@ -119,16 +119,20 @@ def _plugin(herdr: str, run) -> dict:
 
 
 def update(current: str, run: Callable[[list[str]], subprocess.CompletedProcess] = _run) -> dict:
-    """Install the latest release for the Herdr plugin and the `herdboard` command, when it is newer.
+    """Install the latest release for the Herdr plugin and the `herdboard` command, when it is newer than either.
 
-    Only a GitHub install of the plugin updates. `run` runs each command and returns its result."""
+    `current` is the version of the command. The plugin can be older than the command, because each has its
+    own install command. Only a GitHub install of the plugin updates. `run` runs each command and returns its
+    result."""
     latest = latest_release()
     if latest is None:
         raise UpdateCheckFailedError(f"herdboard could not read the latest release from {RELEASES_URL}")
-    if not is_newer(latest, current):
-        return {"current": current, "latest": latest, "updated": False}
     herdr = os.environ.get("HERDR_BIN_PATH") or "herdr"
     plugin = _plugin(herdr, run)
+    version = plugin.get("version")
+    result = {"current": current, "plugin": version if isinstance(version, str) else "", "latest": latest}
+    if not is_newer(latest, current) and not is_newer(latest, result["plugin"]):
+        return {**result, "updated": False}
     if (plugin.get("source") or {}).get("kind") != "github":
         root = plugin.get("plugin_root") or "the plugin folder"
         raise UpdateUnsupportedError(f"This install is a linked clone. Run git pull in {root} instead.")
@@ -141,4 +145,4 @@ def update(current: str, run: Callable[[list[str]], subprocess.CompletedProcess]
             f"{error}\nThe Herdr plugin is at {tag}. Install the herdboard command for it: "
             f'uv tool install --force "{TOOL_SOURCE}@{tag}"'
         ) from error
-    return {"current": current, "latest": latest, "updated": True}
+    return {**result, "updated": True}

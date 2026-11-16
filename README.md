@@ -69,7 +69,7 @@ When a newer release exists, the board header shows `↑ update` after the versi
 herdboard update
 ```
 
-It installs the latest release tag for the Herdr plugin and the `herdboard` command. Reopen the board after it. In a linked clone, run `git pull` in the clone instead. Set `HERDBOARD_NO_UPDATE_CHECK=1` to stop the board from asking GitHub at start.
+It installs the latest release tag for the Herdr plugin and the `herdboard` command, when either is older than that release. Reopen the board after it. In a linked clone, run `git pull` in the clone instead. Set `HERDBOARD_NO_UPDATE_CHECK=1` to stop the board from asking GitHub at start.
 
 ## Quick start
 

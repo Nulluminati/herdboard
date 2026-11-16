@@ -99,9 +99,11 @@ class CheckEnabledTests(unittest.TestCase):
             self.assertTrue(updates.check_enabled())
 
 
-def plugin_list(kind: str, root: str = "/home/me/.config/herdr/plugins/github/nulluminati.herdboard-1") -> str:
+def plugin_list(
+    kind: str, root: str = "/home/me/.config/herdr/plugins/github/nulluminati.herdboard-1", version: str = "0.1.0"
+) -> str:
     """The `herdr plugin list --json` output for an installed herdboard."""
-    plugin = {"plugin_id": "nulluminati.herdboard", "plugin_root": root, "source": {"kind": kind}}
+    plugin = {"plugin_id": "nulluminati.herdboard", "plugin_root": root, "source": {"kind": kind}, "version": version}
     return json.dumps({"id": "cli:plugin", "result": {"plugins": [plugin], "type": "plugin_list"}})
 
 
@@ -126,13 +128,53 @@ class UpdateTests(unittest.TestCase):
         ):
             return updates.update(current, run=runner)
 
+    LIST = ["/opt/herdr", "plugin", "list", "--plugin", "nulluminati.herdboard", "--json"]
+
     def test_the_latest_release_installs_nothing(self):
-        runner = FakeRunner()
+        runner = FakeRunner((0, plugin_list("github", version="0.2.0"), ""))
         self.assertEqual(
             self.update(runner, latest="0.2.0", current="0.2.0"),
-            {"current": "0.2.0", "latest": "0.2.0", "updated": False},
+            {"current": "0.2.0", "plugin": "0.2.0", "latest": "0.2.0", "updated": False},
         )
-        self.assertEqual(runner.calls, [])
+        self.assertEqual(runner.calls, [self.LIST])
+
+    def test_a_plugin_older_than_the_command_is_updated(self):
+        runner = FakeRunner((0, plugin_list("github", version="0.1.0"), ""), (0, "", ""), (0, "", ""))
+        self.assertEqual(
+            self.update(runner, latest="0.2.0", current="0.2.0"),
+            {"current": "0.2.0", "plugin": "0.1.0", "latest": "0.2.0", "updated": True},
+        )
+        self.assertEqual(
+            runner.calls[1:],
+            [
+                ["/opt/herdr", "plugin", "install", "Nulluminati/herdboard", "--ref", "v0.2.0", "--yes"],
+                ["uv", "tool", "install", "--force", "git+https://github.com/Nulluminati/herdboard@v0.2.0"],
+            ],
+        )
+
+    def test_a_command_older_than_the_plugin_is_updated(self):
+        runner = FakeRunner((0, plugin_list("github", version="0.2.0"), ""), (0, "", ""), (0, "", ""))
+        self.assertTrue(self.update(runner, latest="0.2.0", current="0.1.0")["updated"])
+        self.assertEqual(len(runner.calls), 3)
+
+    def test_a_plugin_without_a_version_is_not_older(self):
+        plugin = {"plugin_id": "nulluminati.herdboard", "plugin_root": "/x", "source": {"kind": "github"}}
+        runner = FakeRunner((0, json.dumps({"result": {"plugins": [plugin]}}), ""))
+        self.assertEqual(
+            self.update(runner, latest="0.2.0", current="0.2.0"),
+            {"current": "0.2.0", "plugin": "", "latest": "0.2.0", "updated": False},
+        )
+
+    def test_a_linked_clone_at_the_latest_release_is_not_an_error(self):
+        runner = FakeRunner((0, plugin_list("local", "/home/me/Projects/herdboard", version="0.2.0"), ""))
+        self.assertFalse(self.update(runner, latest="0.2.0", current="0.2.0")["updated"])
+
+    def test_a_linked_clone_older_than_the_command_is_not_updated(self):
+        runner = FakeRunner((0, plugin_list("local", "/home/me/Projects/herdboard", version="0.1.0"), ""))
+        with self.assertRaises(updates.UpdateUnsupportedError) as caught:
+            self.update(runner, latest="0.2.0", current="0.2.0")
+        self.assertIn("git pull", str(caught.exception))
+        self.assertEqual(runner.calls, [self.LIST])
 
     def test_no_release_fails_the_check(self):
         runner = FakeRunner()
@@ -161,7 +203,9 @@ class UpdateTests(unittest.TestCase):
 
     def test_a_github_install_installs_the_release_tag(self):
         runner = FakeRunner((0, plugin_list("github"), ""), (0, "", ""), (0, "", ""))
-        self.assertEqual(self.update(runner), {"current": "0.1.0", "latest": "0.2.0", "updated": True})
+        self.assertEqual(
+            self.update(runner), {"current": "0.1.0", "plugin": "0.1.0", "latest": "0.2.0", "updated": True}
+        )
         self.assertEqual(
             runner.calls[1:],
             [

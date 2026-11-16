@@ -11,6 +11,11 @@ All notable changes to herdboard are in this file. The format follows
 - `S` with Claude now asks for the model and the effort level, as it does for
   pi and Codex. The Claude model lists offer `fable`.
 
+### Fixed
+
+- `herdboard update` now updates a Herdr plugin that is older than the
+  `herdboard` command. It compared only the command's version with the release.
+
 ## [0.2.0] - 2026-11-11
 
 The first public release.
