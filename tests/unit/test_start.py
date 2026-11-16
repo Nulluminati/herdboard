@@ -852,8 +852,7 @@ class StartTests(unittest.TestCase):
     def test_pi_without_approval_mode_starts_without_the_approval_options(self):
         with patch.object(pi_extensions, "pi_flags", return_value=frozenset()) as flags:
             self.starter.start(self.card.ref, agent="pi")
-        record = start._read(start.state_dir() / "starts.json")[self.card.ref]
-        flags.assert_called_once_with(Path(record["worktree_path"]))
+        flags.assert_called_once_with()
         args = self.agent_args()
         self.assertNotIn("--approval-reject", args)
         self.assertTrue(args[-1].startswith("Start work on herdboard card"))

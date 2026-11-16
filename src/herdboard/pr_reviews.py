@@ -746,7 +746,7 @@ def start_reviewer(key: str, record: dict, pr: PullRequest, kind: str, model: st
         else:
             checkout = Path(record["worktree_path"])
             # A pull request has no card, so the warning has no log to go to.
-            flags = pi_extensions.check(checkout, pi_extensions.REVIEWER_FLAGS, "reviewer") if kind == "pi" else None
+            flags = pi_extensions.check(pi_extensions.REVIEWER_FLAGS, "reviewer") if kind == "pi" else None
             herdr(
                 "agent",
                 "start",

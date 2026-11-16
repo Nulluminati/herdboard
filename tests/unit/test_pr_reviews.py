@@ -539,7 +539,7 @@ class ReviewerTests(PrReviewTestCase):
             patch.object(start, "notify") as notify,
         ):
             pr_reviews.start_reviewer(KEY, record, self.pr(), "pi", None, None)
-        flags.assert_called_once_with(self.worktree)
+        flags.assert_called_once_with()
         agent = self.fake.made("herdr", "agent", "start")[0]
         self.assertNotIn("--sandbox", agent)
         self.assertEqual(agent[agent.index("--approval-mode") + 1], "off")

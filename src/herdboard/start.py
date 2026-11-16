@@ -274,9 +274,9 @@ def pi_approval_options(flags: frozenset[str] | None = None) -> list[str]:
     return ["--approval-reject", "block"]
 
 
-def pi_work_options(directory: Path, store=None, ref: str | None = None) -> list[str]:
-    """`pi_approval_options` for the pi in `directory`, after a warning when pi lacks the approval-mode extension."""
-    flags = pi_extensions.check(directory, pi_extensions.AGENT_FLAGS, "agent", store, ref)
+def pi_work_options(store=None, ref: str | None = None) -> list[str]:
+    """`pi_approval_options` for the user's pi, after a warning when pi lacks the approval-mode extension."""
+    flags = pi_extensions.check(pi_extensions.AGENT_FLAGS, "agent", store, ref)
     return pi_approval_options(flags)
 
 
@@ -1236,7 +1236,7 @@ class Starter:
         persist()
         args = agent_arguments(agent, message, model, thinking)
         if agent == "pi":
-            args = [*pi_work_options(Path(record["worktree_path"]), self.store, card.ref), *args]
+            args = [*pi_work_options(self.store, card.ref), *args]
         if agent == "codex":
             args = [*codex_auto_review_options(), *(["--add-dir", factory_folder] if factory_folder else []), *args]
         elif agent == "claude" and factory_folder:

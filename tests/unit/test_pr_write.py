@@ -227,7 +227,7 @@ class RequestTests(PrWriteTestCase):
         self.fake.agent = False
         with patch.object(pi_extensions, "pi_flags", return_value=frozenset()) as flags:
             self.request()
-        flags.assert_called_once_with(self.worktree)
+        flags.assert_called_once_with()
         start_call = next(c for c in self.calls("agent", "start") if c[2].endswith("-pr"))
         self.assertNotIn("--sandbox", start_call)
         shown = [c for c in self.calls("notification", "show") if c[2] == "pi extensions missing"]

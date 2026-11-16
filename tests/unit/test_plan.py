@@ -206,7 +206,7 @@ class RequestTests(PlanTestCase):
     def test_pi_planner_without_approval_mode_starts_and_warns(self):
         with patch.object(pi_extensions, "pi_flags", return_value=frozenset()) as flags:
             self.planner.plan(self.card.ref, agent="pi")
-        flags.assert_called_once_with(Path(self.record()["worktree_path"]))
+        flags.assert_called_once_with()
         call = self.planner_start()
         self.assertNotIn("--approval-reject", call)
         [shown] = self.pi_warnings()

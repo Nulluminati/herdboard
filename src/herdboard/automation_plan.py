@@ -277,11 +277,7 @@ class AutomationPlanner:
                 "it has the automation and how to plan it with me."
             )
             export_config(pane, self.config_file)
-            flags = (
-                pi_extensions.check(worktree, pi_extensions.AGENT_FLAGS, "agent", self.store, ref)
-                if kind == "pi"
-                else None
-            )
+            flags = pi_extensions.check(pi_extensions.AGENT_FLAGS, "agent", self.store, ref) if kind == "pi" else None
             try:
                 herdr(
                     "agent",

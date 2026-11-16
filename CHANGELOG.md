@@ -18,6 +18,9 @@ All notable changes to herdboard are in this file. The format follows
 - `herdboard automation pause`, `resume` and `edit` now work on an automation
   whose board has no repository or is gone. herdboard checks the board only
   when a change sets the board or turns on factory mode.
+- herdboard now reads pi's flags with `pi --help` in an empty folder. In the
+  folder of a card or a pull request, `pi --help` ran that folder's
+  `.pi/extensions/` outside the reviewer sandbox, before the review.
 
 ## [0.2.0] - 2026-11-11
 

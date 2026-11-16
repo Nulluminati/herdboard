@@ -376,7 +376,7 @@ class RequestTests(AgentReviewTestCase):
         self.commit(self.worktree, "a.txt", "a\n", "feat: a")
         with patch.object(pi_extensions, "pi_flags", return_value=frozenset()) as flags:
             self.request(reviewer="pi")
-        flags.assert_called_once_with(self.worktree)
+        flags.assert_called_once_with()
         args = self.reviewer_start()
         for option in ("--sandbox", "--approval-mode"):
             self.assertNotIn(option, args)

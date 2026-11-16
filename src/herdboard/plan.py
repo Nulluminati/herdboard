@@ -463,11 +463,7 @@ class Planner:
             pane = created["root_pane"]["pane_id"]
             tab = created["root_pane"].get("tab_id") or (created.get("tab") or {}).get("tab_id")
             export_config(pane, self.config_file)
-            flags = (
-                pi_extensions.check(worktree, pi_extensions.AGENT_FLAGS, "agent", self.store, ref)
-                if kind == "pi"
-                else None
-            )
+            flags = pi_extensions.check(pi_extensions.AGENT_FLAGS, "agent", self.store, ref) if kind == "pi" else None
             # A startup prompt (such as Claude's folder trust check) waits for the user: the worker watches it.
             try:
                 herdr(

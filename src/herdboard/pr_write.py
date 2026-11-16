@@ -173,9 +173,7 @@ def request(merger, card, ref, key, record, worktree: Path, base: str, rewrite_u
         model = config.start_model if kind == config.start_agent else None
         thinking = config.start_thinking if config.start_thinking in thinking_levels(kind) else None
         flags = (
-            pi_extensions.check(worktree, pi_extensions.REVIEWER_FLAGS, "reviewer", merger.store, ref)
-            if kind == "pi"
-            else None
+            pi_extensions.check(pi_extensions.REVIEWER_FLAGS, "reviewer", merger.store, ref) if kind == "pi" else None
         )
         # A startup prompt waits for the user, and a busy writer never looks ready: the worker watches it.
         herdr(

@@ -130,9 +130,7 @@ def launch_reviewer(
         + "".join(f" and {folder / name}" for name in also)
         + " and nowhere else."
     )
-    flags = (
-        pi_extensions.check(worktree, pi_extensions.REVIEWER_FLAGS, "reviewer", store, ref) if kind == "pi" else None
-    )
+    flags = pi_extensions.check(pi_extensions.REVIEWER_FLAGS, "reviewer", store, ref) if kind == "pi" else None
     # A startup prompt (such as Claude's folder trust check) waits for the user,
     # and a reviewer busy with its first message never looks ready: the worker watches it.
     try:

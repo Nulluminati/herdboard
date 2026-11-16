@@ -2,7 +2,12 @@
 
 herdboard starts pi with flags that only the approval-mode and worker-sandbox extensions register. pi exits
 on a flag it does not know, so herdboard asks `pi --help` before each pi start and leaves out the flags that
-pi does not have. Extensions can be project-local, so the check runs in the card's folder.
+pi does not have.
+
+`pi --help` loads and runs every extension that pi finds, those in the `.pi/extensions/` of its folder
+included. A card's or a pull request's folder holds code that is not reviewed yet, so the check runs in an
+empty folder and sees only the user's own extensions. A flag that only a project-local extension registers
+counts as missing.
 """
 
 from __future__ import annotations
@@ -10,7 +15,7 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
-from pathlib import Path
+import tempfile
 
 EXTENSIONS_URL = "https://github.com/Nulluminati/pi-extensions"
 # Each flag that herdboard passes to pi, and the extension that registers it.
@@ -31,12 +36,13 @@ EFFECTS = {
 }
 
 
-def pi_flags(directory: Path) -> frozenset[str] | None:
-    """The EXTENSION_FLAGS that `pi --help` lists in `directory`. None when pi does not answer."""
+def pi_flags() -> frozenset[str] | None:
+    """The EXTENSION_FLAGS that `pi --help` lists in an empty folder. None when pi does not answer."""
     try:
-        result = subprocess.run(
-            ["pi", "--help"], capture_output=True, text=True, timeout=HELP_TIMEOUT_SECONDS, cwd=directory
-        )
+        with tempfile.TemporaryDirectory(prefix="herdboard-pi-") as empty:
+            result = subprocess.run(
+                ["pi", "--help"], capture_output=True, text=True, timeout=HELP_TIMEOUT_SECONDS, cwd=empty
+            )
     except (OSError, subprocess.TimeoutExpired):
         return None
     if result.returncode:
@@ -75,9 +81,9 @@ def warn(missing: list[str], role: str, store=None, ref: str | None = None) -> N
             print(f"herdboard: cannot log the warning for {ref}: {error}", file=sys.stderr)
 
 
-def check(directory: Path, needed: tuple[str, ...], role: str, store=None, ref: str | None = None):
-    """pi's flags in `directory`, after a warning for each extension that a `needed` flag is missing from."""
-    flags = pi_flags(directory)
+def check(needed: tuple[str, ...], role: str, store=None, ref: str | None = None):
+    """pi's flags, after a warning for each extension that a `needed` flag is missing from."""
+    flags = pi_flags()
     missing = missing_extensions(flags, needed)
     if missing:
         warn(missing, role, store, ref)

@@ -1240,8 +1240,8 @@ class PlanAutomationTests(LocalTime):
     def test_a_pi_automation_planner_without_approval_mode_starts_and_warns(self):
         added = self.add("inbox")
         with patch.object(pi_extensions, "pi_flags", return_value=frozenset()) as flags:
-            result = self.planner.plan(added.id, agent="pi")
-        flags.assert_called_once_with(Path(result["worktree_path"]))
+            self.planner.plan(added.id, agent="pi")
+        flags.assert_called_once_with()
         self.assertNotIn("--approval-reject", self.fake.find("agent", "start")[0])
         shown = [c for c in self.fake.calls if c[:3] == ["notification", "show", "pi extensions missing"]]
         self.assertEqual(len(shown), 1)

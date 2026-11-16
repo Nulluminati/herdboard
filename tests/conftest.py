@@ -21,4 +21,4 @@ def _pi_has_every_extension(request, monkeypatch):
         return
     from herdboard import pi_extensions
 
-    monkeypatch.setattr(pi_extensions, "pi_flags", lambda directory: frozenset(pi_extensions.EXTENSION_FLAGS))
+    monkeypatch.setattr(pi_extensions, "pi_flags", lambda: frozenset(pi_extensions.EXTENSION_FLAGS))

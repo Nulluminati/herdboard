@@ -1,5 +1,6 @@
 """Which pi-extensions flags pi has, and the warning when an extension is missing."""
 
+import contextlib
 import subprocess
 import tempfile
 import unittest
@@ -26,7 +27,7 @@ def help_result(name, returncode=0):
 class PiFlagsTests(unittest.TestCase):
     def flags(self, result):
         with patch.object(pi_extensions.subprocess, "run", return_value=result) as run:
-            flags = pi_extensions.pi_flags(Path("/work/card"))
+            flags = pi_extensions.pi_flags()
         return flags, run
 
     def test_all_extension_flags(self):
@@ -41,19 +42,31 @@ class PiFlagsTests(unittest.TestCase):
         flags, _ = self.flags(help_result("help-approval-mode-only.txt"))
         self.assertEqual(flags, frozenset({"--approval-mode"}))
 
-    def test_runs_pi_help_in_the_card_directory(self):
-        _, run = self.flags(help_result("help-extensions.txt"))
-        args, kwargs = run.call_args
-        self.assertEqual(args[0], ["pi", "--help"])
-        self.assertEqual(kwargs["cwd"], Path("/work/card"))
-        self.assertTrue(kwargs["capture_output"])
-        self.assertGreater(kwargs["timeout"], 0)
+    def test_runs_pi_help_in_an_empty_folder_that_it_removes(self):
+        seen = {}
+
+        def run(command, **kwargs):
+            folder = Path(kwargs["cwd"])
+            seen.update(command=command, kwargs=kwargs, folder=folder, entries=list(folder.iterdir()))
+            return help_result("help-extensions.txt")
+
+        with tempfile.TemporaryDirectory() as work, patch.object(pi_extensions.subprocess, "run", side_effect=run):
+            card = Path(work).resolve()
+            with contextlib.chdir(card):
+                pi_extensions.pi_flags()
+        self.assertEqual(seen["command"], ["pi", "--help"])
+        self.assertEqual(seen["entries"], [])
+        self.assertNotEqual(seen["folder"].resolve(), card)
+        self.assertNotIn(card, seen["folder"].resolve().parents)
+        self.assertFalse(seen["folder"].exists())
+        self.assertTrue(seen["kwargs"]["capture_output"])
+        self.assertGreater(seen["kwargs"]["timeout"], 0)
 
     def test_a_failed_check_is_none(self):
         self.assertIsNone(self.flags(help_result("help-no-extensions.txt", returncode=1))[0])
         for error in (OSError("no pi"), subprocess.TimeoutExpired(["pi"], 30)):
             with self.subTest(error=error), patch.object(pi_extensions.subprocess, "run", side_effect=error):
-                self.assertIsNone(pi_extensions.pi_flags(Path("/work/card")))
+                self.assertIsNone(pi_extensions.pi_flags())
 
 
 class MissingExtensionsTests(unittest.TestCase):
@@ -104,7 +117,7 @@ class CheckTests(unittest.TestCase):
             patch("herdboard.start.notify") as notify,
             patch("sys.stderr") as stderr,
         ):
-            result = pi_extensions.check(Path("/work/card"), needed, role, store, ref)
+            result = pi_extensions.check(needed, role, store, ref)
         return result, notify, stderr
 
     def test_missing_extension_warns_on_every_channel(self):
