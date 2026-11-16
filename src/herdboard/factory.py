@@ -471,7 +471,7 @@ def wait_round(ref, state_folder: Path, review: dict, store=None) -> dict:
         if lens in failures:
             sections += [f"# {lens}", "", f"This lens failed: {failures[lens]}", ""]
             continue
-        text = (round_folder / lens / "findings.md").read_text(encoding="utf-8").strip()
+        text = (round_folder / lens / "findings.md").read_text(encoding="utf-8", errors="replace").strip()
         counts[lens] = (count_confirmed(text), count_questions(text))
         sections += [f"# {lens} ({entry['kind']})", "", text, ""]
     (round_folder / "findings.md").write_text("\n".join(sections), encoding="utf-8")
@@ -868,7 +868,7 @@ def run_approver(store, ref, record, card, writer=None) -> dict:
     update(ref, folder, panes=[])
     if error is not None:
         return {"stopped": False, "error": error}
-    text = verdict_file.read_text(encoding="utf-8")
+    text = verdict_file.read_text(encoding="utf-8", errors="replace")
     if not policy:
         attachments.add(store, ref, verdict_file, name=VERDICT_NAME)
         return {"stopped": False, "verdict": verdict_of(text)}
@@ -1047,7 +1047,7 @@ def _step(store, ref, folder: Path, record, card, config_file, writer) -> int | 
         return _end(store, ref, folder, "done", "Factory: no change to review.", f"Factory of {ref} done", writer)
     if number:
         last = folder / f"round-{number}" / "findings.md"
-        confirmed = count_confirmed(last.read_text(encoding="utf-8")) if last.exists() else 0
+        confirmed = count_confirmed(last.read_text(encoding="utf-8", errors="replace")) if last.exists() else 0
         # A lens that failed did not review the change: its round does not count as clean.
         failed = state.get("failed") or []
         reason = None

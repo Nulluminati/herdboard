@@ -552,6 +552,20 @@ class RoundTests(FactoryTestCase):
         self.assertNotIn("This lens failed: The pi reviewer", merged)
         self.assertIn("This lens failed: The codex reviewer", merged)
 
+    def test_a_byte_that_is_not_utf8_in_one_lens_is_replaced_in_the_merged_findings(self):
+        self.write_plan(verified_plan(lenses="code"))
+        self.start_factory()
+        self.commit(self.worktree, "a.txt", "a\n", "feat: a")
+        self.fake.reviewer_states["code"] = ["working"] * 5
+        review = factory.run_round(self.store, self.card.ref, self.record(), self.card, 1)
+        findings = self.folder / "round-1" / "code" / "findings.md"
+        findings.write_bytes(b"## Confirmed problems\n- a.txt:1: caf\xe9 is latin-1.\n")
+        with patch.object(factory, "REVIEW_TIMEOUT_SECONDS", 0):
+            result = factory.wait_round(self.card.ref, self.folder, review)
+        self.assertEqual((result["confirmed"], result["failures"]), (1, {}))
+        merged = (self.folder / "round-1" / "findings.md").read_text(encoding="utf-8")
+        self.assertIn("- a.txt:1: caf\ufffd is latin-1.", merged)
+
     def test_a_lens_that_does_not_launch_fails_alone(self):
         self.write_plan(verified_plan(lenses="security, code"))
         self.start_factory()
@@ -842,6 +856,26 @@ class WorkerTests(FactoryTestCase):
         self.assertIn("Factory stopped: broken", self.log())
         self.assertEqual(self.state()["status"], "stopped")
         self.assertEqual(self.fake.reviewers, {})
+
+    def test_a_byte_that_is_not_utf8_in_the_findings_does_not_stop_the_run(self):
+        # The code reviewer wrote its findings and then its pane vanished.
+        self.fake.reviewer_states["code"] = ["working", None]
+        folder = self.folder / "round-1" / "code"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "findings.md").write_bytes(b"## Confirmed problems\n- a.txt:1: caf\xe9 is latin-1.\n")
+        self.builder_fixes(commit=False)
+        self.assertEqual(self.wait(), 0, self.errors.getvalue())
+        log = self.log()
+        self.assertIn("Factory round 1 of 3: 1 confirmed problems (code 1), 0 questions.", log)
+        self.assertFalse([line for line in log if "Factory stopped" in line], log)
+
+    def test_a_byte_that_is_not_utf8_in_the_verdict_does_not_stop_the_run(self):
+        verdict = self.folder / "approver" / "verdict.md"
+        self.fake.on_approve = lambda: verdict.write_bytes(b"Verdict: changes needed\n\n- caf\xe9 is latin-1.\n")
+        self.assertEqual(self.wait(), 0, self.errors.getvalue())
+        self.assertIn("Factory done: changes needed.", self.log())
+        published = attachments.folder(self.config, self.card.ref) / factory.VERDICT_NAME
+        self.assertIn("caf\ufffd is latin-1.", published.read_text(encoding="utf-8"))
 
     def test_the_approver_verdict_is_attached_and_logged(self):
         self.fake.verdict = "Verdict: changes needed\n\n## Plan steps not done\n- Step 2.\n"
