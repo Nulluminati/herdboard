@@ -704,7 +704,7 @@ Finish writing the complete verdict file before you end your turn. Do not wait f
 def verdict_of(text: str) -> str:
     first = text.strip().splitlines()[0].strip() if text.strip() else ""
     found = re.match(r"verdict:\s*(.+)", first, re.IGNORECASE)
-    return found.group(1).strip().rstrip(".") if found else "unknown"
+    return found.group(1).strip().rstrip(".").casefold() if found else "unknown"
 
 
 def _plan_changed(config, ref, state: dict) -> list[str]:

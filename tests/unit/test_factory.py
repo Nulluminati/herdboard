@@ -893,6 +893,18 @@ class GateTests(FactoryTestCase):
         self.assertIn("The report is complete and current.", (approver / "validation.md").read_text())
         self.assertEqual(json.loads((approver / "contract.json").read_text()), CONTRACT)
 
+    def test_a_capitalised_verdict_keeps_the_approval(self):
+        self.fake.verdict = "Verdict: Approve.\n\n## Plan steps not done\nNone.\n"
+        self.write_evidence()
+        message, text = self.finish()
+        self.assertEqual(message, "Factory done: approve.")
+        self.assertTrue(text.startswith("Verdict: approve\n"), text)
+
+    def test_the_verdict_does_not_depend_on_capitalisation(self):
+        self.assertEqual(factory.verdict_of("Verdict: Approve\n"), "approve")
+        self.assertEqual(factory.verdict_of("VERDICT: Changes Needed.\n"), "changes needed")
+        self.assertEqual(factory.verdict_of("Looks good.\n"), "unknown")
+
     def assert_changes_needed(self, *words):
         message, text = self.finish()
         self.assertTrue(message.startswith("Factory done: changes needed. The evidence gate found"), message)
