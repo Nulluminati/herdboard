@@ -335,10 +335,18 @@ def _new_id(config: Config, taken: set[str]) -> str:
             return candidate
 
 
-def _check(store, item: Automation, *, check_preset: bool = True, check_board: bool = True) -> Automation:
+def _check(
+    store,
+    item: Automation,
+    *,
+    check_preset: bool = True,
+    check_board: bool = True,
+    check_type: bool = True,
+    check_thinking: bool = True,
+) -> Automation:
     """Check every field before a write. Returns the automation with the type's configured name.
-    A change that keeps the saved preset or board passes False for it, so a preset or a board that
-    went bad after the save does not block a pause or an unrelated edit."""
+    A change that keeps the saved preset, board, type or thinking level passes False for it, so one
+    that went bad after the save does not block a pause or an unrelated edit."""
     config = store.config
     title = " ".join(item.title.split())
     if not title:
@@ -346,7 +354,7 @@ def _check(store, item: Automation, *, check_preset: bool = True, check_board: b
     for tag in item.tags:
         if not tag or any(ch.isspace() or ch == "#" for ch in tag):
             raise AutomationError(f"Tag {tag!r} must be one word without #")
-    kind = config.type_named(item.type) if item.type else None
+    kind = config.type_named(item.type) if item.type and check_type else item.type or None
     if item.factory_preset is not None:
         if not item.factory:
             raise AutomationError(
@@ -379,7 +387,7 @@ def _check(store, item: Automation, *, check_preset: bool = True, check_board: b
         raise AutomationError("The agent must be claude, pi or codex")
     agent = item.agent or config.start_agent
     levels = thinking_levels(agent)
-    if item.thinking and item.thinking not in levels:
+    if check_thinking and item.thinking and item.thinking not in levels:
         raise AutomationError(f"Thinking must be one of {', '.join(levels)}")
     if item.model is not None and (not item.model or any(ch.isspace() for ch in item.model)):
         raise AutomationError("The model must be one name, such as zai/glm-5.3")
@@ -460,6 +468,9 @@ def _change(store, automation_id: str, change, saved=None) -> tuple[Automation, 
                     check_preset=changed.factory_preset != item.factory_preset,
                     # Factory mode needs a repository board, so a change that turns it on checks the board too.
                     check_board=changed.board != item.board or (changed.factory and not item.factory),
+                    check_type=changed.type != item.type,
+                    # The levels depend on the agent, so a change of the agent checks the level too.
+                    check_thinking=(changed.thinking, changed.agent) != (item.thinking, item.agent),
                 )
                 current[index] = changed
                 save(store.config, current)
@@ -560,6 +571,14 @@ def spawn(store, automation: Automation, due: datetime) -> CardView:
     return card
 
 
+def _run_thinking(config: Config, automation: Automation) -> str | None:
+    """The thinking level for a run. An automation without an agent of its own uses `start_agent`,
+    so a level saved for an earlier `start_agent` is left out when the current one does not take it."""
+    if automation.agent is None and automation.thinking not in thinking_levels(config.start_agent):
+        return None
+    return automation.thinking
+
+
 def run(store, automation: Automation, due: datetime, *, skipped: int = 0, config_file: Path | None = None) -> dict:
     """Spawn one card and start its agent. Failures are logged, recorded and notified, never retried."""
     now = datetime.now().astimezone().isoformat(timespec="seconds")
@@ -586,14 +605,21 @@ def run(store, automation: Automation, due: datetime, *, skipped: int = 0, confi
             f"Missed runs: skipped {skipped} earlier due time{'' if skipped == 1 else 's'}.",
             "herdboard",
         )
+    thinking = _run_thinking(store.config, automation)
+    if thinking != automation.thinking:
+        activity.append(
+            store,
+            card.ref,
+            f"{store.config.start_agent} does not take the thinking level {automation.thinking}: "
+            "started with its default.",
+            "herdboard",
+        )
     starter = Starter(store, store.config.todos_dir, config_file=config_file)
     try:
         from . import factory
 
         run = (
-            factory.resolve_run(
-                store.config, automation.factory_preset, automation.agent, automation.model, automation.thinking
-            )
+            factory.resolve_run(store.config, automation.factory_preset, automation.agent, automation.model, thinking)
             if automation.factory
             else None
         )
@@ -604,7 +630,7 @@ def run(store, automation: Automation, due: datetime, *, skipped: int = 0, confi
             card.ref,
             agent=automation.agent,
             model=automation.model,
-            thinking=automation.thinking,
+            thinking=thinking,
             no_repo=automation.board == "inbox",
             may_merge_prs=automation.may_merge_prs,
             factory=automation.factory,

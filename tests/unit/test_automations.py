@@ -241,6 +241,36 @@ class StorageTests(AutomationTestCase):
         self.assertIn("Board plain has no repository", str(raised.exception))
         self.assertFalse(automations.get(self.config, saved.id).factory)
 
+    def test_a_changed_start_agent_does_not_block_pause_or_unrelated_edits(self):
+        self.config.start_agent = "pi"
+        saved = self.add(thinking="minimal")
+        self.config.start_agent = "claude"
+        self.assertFalse(automations.set_enabled(self.store, saved.id, False).enabled)
+        self.assertTrue(automations.set_enabled(self.store, saved.id, True).enabled)
+        edited = automations.edit(self.store, saved.id, title="New title")
+        self.assertEqual((edited.title, edited.thinking), ("New title", "minimal"))
+        self.assertEqual(automations.edit(self.store, saved.id, thinking="high").thinking, "high")
+
+    def test_a_changed_start_agent_still_checks_a_new_thinking_level_or_agent(self):
+        self.config.start_agent = "pi"
+        saved = self.add(thinking="minimal")
+        self.config.start_agent = "claude"
+        for changes in ({"thinking": "off"}, {"agent": "codex"}):
+            with self.subTest(changes=changes), self.assertRaisesRegex(HerdboardError, "Thinking must be one of"):
+                automations.edit(self.store, saved.id, **changes)
+        self.assertEqual(automations.edit(self.store, saved.id, agent="pi").agent, "pi")
+
+    def test_a_removed_type_does_not_block_pause_or_unrelated_edits(self):
+        saved = self.add(type="bug")
+        self.config.types = ["feature"]
+        self.assertFalse(automations.set_enabled(self.store, saved.id, False).enabled)
+        self.assertTrue(automations.set_enabled(self.store, saved.id, True).enabled)
+        edited = automations.edit(self.store, saved.id, title="New title")
+        self.assertEqual((edited.title, edited.type), ("New title", "bug"))
+        with self.assertRaisesRegex(HerdboardError, "Unknown type 'chore'"):
+            automations.edit(self.store, saved.id, type="chore")
+        self.assertEqual(automations.edit(self.store, saved.id, type="Feature").type, "feature")
+
     def test_claude_takes_its_own_thinking_levels(self):
         added = self.add(agent="claude", thinking="max")
         self.assertEqual((added.agent, added.thinking), ("claude", "max"))
@@ -331,6 +361,35 @@ class RunTests(AutomationTestCase):
         call = next(c for c in self.fake.calls if c[:2] == ["agent", "start"])
         self.assertEqual(call[call.index("--kind") + 1], "codex")
         self.assertIn("gpt-5.5", call)
+
+    def test_an_inherited_thinking_level_that_the_start_agent_does_not_take_is_left_out(self):
+        self.config.start_agent = "pi"
+        added = self.add(thinking="minimal")
+        self.config.start_agent = "claude"
+        result = automations.run(self.store, added, local(2026, 10, 23, 9, 0))
+        self.assertEqual(result["result"], "started")
+        call = next(c for c in self.fake.calls if c[:2] == ["agent", "start"])
+        self.assertEqual(call[call.index("--kind") + 1], "claude")
+        self.assertNotIn("minimal", call)
+        messages = [e["message"] for e in activity.read(self.config, result["card"])]
+        self.assertIn("claude does not take the thinking level minimal: started with its default.", messages)
+
+    def test_an_inherited_thinking_level_that_the_start_agent_takes_reaches_the_start(self):
+        self.config.start_agent = "pi"
+        added = self.add(thinking="high")
+        self.config.start_agent = "claude"
+        result = automations.run(self.store, added, local(2026, 10, 23, 9, 0))
+        self.assertEqual(result["result"], "started")
+        call = next(c for c in self.fake.calls if c[:2] == ["agent", "start"])
+        self.assertEqual(call[call.index("--effort") + 1], "high")
+
+    def test_a_removed_type_fails_the_run_without_a_card(self):
+        added = self.add(type="bug")
+        self.config.types = ["feature"]
+        result = automations.run(self.store, added, local(2026, 10, 23, 9, 0))
+        self.assertTrue(result["result"].startswith("spawn_failed: Unknown type 'bug'"))
+        self.assertIsNone(result["card"])
+        self.assertEqual(self.cards(), [])
 
     def test_a_start_failure_keeps_the_card_logs_and_notifies(self):
         added = self.add()

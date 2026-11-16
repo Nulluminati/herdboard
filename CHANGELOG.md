@@ -21,6 +21,12 @@ All notable changes to herdboard are in this file. The format follows
 - herdboard now reads pi's flags with `pi --help` in an empty folder. In the
   folder of a card or a pull request, `pi --help` ran that folder's
   `.pi/extensions/` outside the reviewer sandbox, before the review.
+- `herdboard automation pause`, `resume` and `edit` now work on an automation
+  whose thinking level or type no longer fits the config file, after a change
+  of `start_agent` or `types`. herdboard checks them only when a change sets them.
+- An automation run without an agent of its own now starts with the agent's
+  default thinking level when `start_agent` does not take the saved level. The
+  run failed after it added a card.
 
 ## [0.2.0] - 2026-11-11
 
