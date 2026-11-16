@@ -26,6 +26,7 @@ from pathlib import Path
 from . import activity, attachments, verification
 from . import start as start_module
 from .agent_review import (
+    FINDINGS_HEADINGS,
     REVIEW_COMMAND_RULES,
     REVIEWERS,
     _reviewer_status,
@@ -137,15 +138,12 @@ def approver_kind(config, builder: str) -> str:
     return config.factory_approver or REVIEWERS[builder]
 
 
-SECTIONS = ("Confirmed problems", "Risks and questions")
-
-
 def _is_heading(line: str) -> bool:
     """A section boundary: a `## ` heading, a findings section's heading in any style,
     or a lens's `# <lens>` heading in a merged round file.
 
     Another `#` line, such as a note or a shell comment, stays inside its section."""
-    if line.startswith("## ") or heading_text(line) in {name.casefold() for name in SECTIONS}:
+    if line.startswith("## ") or heading_text(line) in FINDINGS_HEADINGS:
         return True
     words = line[2:].split() if line.startswith("# ") else []
     return bool(words) and words[0] in LENSES

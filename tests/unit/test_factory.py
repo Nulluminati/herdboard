@@ -260,6 +260,23 @@ class LensTests(FactoryTestCase):
                 self.assertEqual(factory.count_confirmed(text), 1)
                 self.assertEqual(factory.count_questions(text), 1)
 
+    def test_a_verification_limits_heading_ends_a_section_in_any_style(self):
+        for heading in [
+            "## Verification limits",
+            "Verification limits:",
+            "# Verification limits",
+            "**Verification limits**",
+            "**Verification limits:**",
+            "### Verification Limits",
+        ]:
+            for section in ("Confirmed problems", "Risks and questions"):
+                with self.subTest(heading=heading, section=section):
+                    text = f"## {section}\n- None.\n\n{heading}\n- The tests could not run.\n- No display.\n"
+                    self.assertEqual((factory.count_confirmed(text), factory.count_questions(text)), (0, 0))
+                    path = self.root / "findings.md"
+                    path.write_text(text, encoding="utf-8")
+                    self.assertEqual(agent_review._count_findings(path), 0)
+
     def test_a_lens_heading_ends_a_section_in_another_style(self):
         merged = (
             "# security (codex)\n\n**Confirmed problems:**\n- [high] a.py:1: bug.\n\n"
