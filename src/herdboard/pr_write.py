@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 from pathlib import Path
 
 from . import activity, merge, pi_extensions
@@ -275,7 +276,8 @@ def _settle(ref: str, **updates) -> dict | None:
 
 def _push_text(worktree: Path, branch: str, base: str, folder: Path, linear_url: str | None) -> tuple[str, Path]:
     """Parse `pr.md`, push the branch, and write the GitHub body next to it. Returns the title and body file."""
-    title, body = parse((folder / "pr.md").read_text(encoding="utf-8"), linear_url)
+    # An agent wrote the file, and the text goes to GitHub: a replacement character is better than no pull request.
+    title, body = parse((folder / "pr.md").read_text(encoding="utf-8", errors="replace"), linear_url)
     merge.push_branch(worktree, branch, base)
     body_file = folder / "body.md"
     body_file.write_text(body, encoding="utf-8")
@@ -353,6 +355,10 @@ def wait(store, ref, folder: Path, writer=None) -> int:
         try:
             url, done = _open(data, folder)
         except (HerdboardError, OSError) as failure:
+            error = failure
+        except Exception as failure:
+            # A failure that nothing expects must still settle the request: a left one blocks the next request.
+            traceback.print_exc()
             error = failure
     if error is not None:
         print(f"herdboard: {error}", file=sys.stderr)

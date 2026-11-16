@@ -367,6 +367,26 @@ class WaitTests(PrWriteTestCase):
         self.assertEqual(self.calls("notification", "show")[-1][2], f"PR for {self.card.ref} not opened")
         self.assertNotIn("pr_write", self.records()[self.card.ref])
 
+    def test_a_description_that_is_not_utf8_opens_with_the_byte_replaced(self):
+        self.fake.findings = None
+        self.request()
+        (self.folder / "pr.md").write_bytes(b"fix: keep sessions\n\n## Why\ncaf\xe9 broke it.\n")
+        self.assertEqual(self.wait(), 0)
+        [create] = self.created()
+        self.assertEqual(create[create.index("--title") + 1], "fix: keep sessions")
+        self.assertEqual(self.gh.bodies, ["## Why\ncaf\ufffd broke it.\n"])
+        self.assertNotIn("pr_write", self.records()[self.card.ref])
+
+    def test_an_unexpected_failure_clears_the_request(self):
+        self.request()
+        with patch.object(pr_write, "_open", side_effect=RuntimeError("boom")):
+            self.assertEqual(self.wait(), 1)
+        self.assertNotIn("pr_write", self.records()[self.card.ref])
+        self.assertEqual(self.log()[-1], "PR not opened: boom")
+        self.assertIn("RuntimeError: boom", self.errors.getvalue())
+        self.assertEqual(self.calls("notification", "show")[-1][2], f"PR for {self.card.ref} not opened")
+        self.merger.merge(self.card.ref, mode="pr")
+
     def test_a_failed_push_opens_no_pull_request(self):
         self.request()
         self.git(self.repo, "remote", "remove", "origin")
@@ -610,6 +630,14 @@ class SyncTests(PrWriteTestCase):
         with self.assertRaises(merge.MergeError) as raised:
             self.sync()
         self.assertEqual(raised.exception.code, "pr_failed")
+
+    def test_a_description_that_is_not_utf8_syncs_with_the_byte_replaced(self):
+        self.opened()
+        (self.folder / "pr.md").write_bytes(b"fix: caf\xe9\n\nBody.\n")
+        self.sync()
+        [edit] = [c for c in self.gh.calls if c[:2] == ["pr", "edit"]]
+        self.assertEqual(edit[edit.index("--title") + 1], "fix: caf\ufffd")
+        self.assertEqual(self.gh.bodies, ["Body.\n"])
 
     def test_a_card_without_a_worktree_cannot_sync(self):
         self.opened()
