@@ -231,6 +231,10 @@ class LensTests(FactoryTestCase):
         # A reviewer may write "- None." in an empty section.
         self.assertEqual(factory.count_questions("## Confirmed problems\n- None.\n## Risks and questions\n- None\n"), 0)
         self.assertEqual(factory.count_confirmed("## Confirmed problems\n- none.\n"), 0)
+        # A reviewer may put the word in emphasis.
+        emphasised = "## Confirmed problems\n- **None.**\n\n## Risks and questions\n- _none_\n"
+        self.assertEqual(factory.count_confirmed(emphasised), 0)
+        self.assertEqual(factory.count_questions(emphasised), 0)
         merged = "# security (codex)\n\n" + text + "\n# code (pi)\n\n## Confirmed problems\n- [low] b.py:1: x.\n"
         self.assertEqual(factory.count_confirmed(merged), 3)
         # A "#" line that is not a section heading, such as a note or a shell comment, does not end the section.

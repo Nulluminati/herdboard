@@ -469,8 +469,10 @@ def heading_text(line: str) -> str:
 
 
 def is_none_bullet(line: str) -> bool:
-    """A reviewer may write "- None." in an empty section. It is not a finding."""
-    return line[2:].strip().rstrip(".").casefold() == "none"
+    """A reviewer may write "- None." in an empty section. It is not a finding.
+
+    The word can be in `*` or `_` emphasis: `- **None.**`, `- **None**.` and `- _none_` are the same bullet."""
+    return line[2:].strip(" \t*_").rstrip(".").strip(" \t*_").casefold() == "none"
 
 
 def _count_findings(findings: Path) -> int:

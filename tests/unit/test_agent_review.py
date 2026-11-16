@@ -304,6 +304,19 @@ class RequestTests(AgentReviewTestCase):
         )
         self.assertEqual(agent_review._count_findings(findings), 1)
 
+    def test_an_emphasised_none_bullet_is_not_counted_as_a_finding(self):
+        findings = self.root / "findings.md"
+        for bullet in ("- **None.**", "- **None**.", "- _none_", "- *None*", "- __NONE.__"):
+            with self.subTest(bullet=bullet):
+                self.assertTrue(agent_review.is_none_bullet(bullet))
+                findings.write_text(f"## Confirmed problems\n{bullet}\n\n## Risks and questions\n- a.py:2: why?\n")
+                self.assertEqual(agent_review._count_findings(findings), 1)
+
+    def test_an_emphasised_finding_is_not_a_none_bullet(self):
+        for bullet in ("- **None of the tests ran.**", "- _nonexistent_ path in a.py:1", "- **a.py:1**: none"):
+            with self.subTest(bullet=bullet):
+                self.assertFalse(agent_review.is_none_bullet(bullet))
+
     def test_a_findings_file_that_is_not_utf8_is_counted(self):
         findings = self.root / "findings.md"
         findings.write_bytes(b"## Confirmed problems\n- a.py:1: bad byte \xff.\n")
