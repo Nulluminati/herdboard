@@ -36,6 +36,7 @@ from .agent_review import (
     launch_reviewer,
     read_change,
     request_text,
+    unfenced_lines,
     write_change,
 )
 from .config import LENSES, FactoryRun, Role
@@ -150,9 +151,9 @@ def _is_heading(line: str) -> bool:
 
 
 def _section(text: str, heading: str) -> list[str]:
-    """The `- ` lines under a `heading`, up to the next heading."""
+    """The `- ` lines under a `heading`, up to the next heading. A line in a fenced code block is not one."""
     lines, inside = [], False
-    for line in text.splitlines():
+    for line in unfenced_lines(text):
         if _is_heading(line):
             inside = heading_text(line) == heading.casefold()
             continue

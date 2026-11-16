@@ -245,6 +245,19 @@ class LensTests(FactoryTestCase):
         limits = text + "\n## Verification limits\n- The tests could not run in the sandbox.\n"
         self.assertEqual((factory.count_confirmed(limits), factory.count_questions(limits)), (2, 1))
 
+    def test_a_line_inside_a_code_fence_is_not_counted(self):
+        text = (
+            "## Confirmed problems\n- [high] src/api.py:41: the retry drops the last attempt.\n\n"
+            "```diff\n-    for attempt in range(attempts):\n+    for attempt in range(attempts - 1):\n```\n\n"
+            "## Risks and questions\n- src/api.py:60: is the timeout per attempt?\n\n"
+            "~~~\n- a list in a shell result\n## Confirmed problems\n- not a finding\n~~~\n\n"
+            "## Verification limits\n- Could not run the tests.\n"
+        )
+        self.assertEqual((factory.count_confirmed(text), factory.count_questions(text)), (1, 1))
+        # A fence that never closes hides no finding: the builder still gets its round.
+        unclosed = "## Confirmed problems\n- a.py:1: bug.\n```\n- a.py:2: bug.\n"
+        self.assertEqual(factory.count_confirmed(unclosed), 2)
+
     def test_count_confirmed_accepts_other_heading_styles(self):
         for confirmed, risks in [
             ("## Confirmed problems:", "## Risks and questions:"),

@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections.abc import Iterator
 from pathlib import Path
 
 from . import activity, attachments, pi_extensions, sandbox
@@ -475,10 +476,44 @@ def is_none_bullet(line: str) -> bool:
     return line[2:].strip(" \t*_").rstrip(".").strip(" \t*_").casefold() == "none"
 
 
+def _fence(line: str) -> str | None:
+    """The fence that opens a code block on this line: three or more backticks or tildes. None for another line."""
+    text = line.strip()
+    for mark in ("`", "~"):
+        fence = text[: len(text) - len(text.lstrip(mark))]
+        # Backticks after a backtick fence make the line inline code, not a fence.
+        if len(fence) >= 3 and not (mark == "`" and "`" in text[len(fence) :]):
+            return fence
+    return None
+
+
+def _closes(line: str, fence: str) -> bool:
+    """True for a line of only the fence's character, at least as long as the fence."""
+    text = line.strip()
+    return len(text) >= len(fence) and not text.strip(fence[0])
+
+
+def unfenced_lines(text: str) -> Iterator[str]:
+    """The lines of a findings text that are outside its fenced code blocks.
+
+    A diff or a shell result in a code block has `- ` and `#` lines that are not findings or headings.
+    A fence that never closes opens no code block, so it hides no finding."""
+    lines = text.splitlines()
+    index = 0
+    while index < len(lines):
+        fence = _fence(lines[index])
+        close = fence and next((i for i in range(index + 1, len(lines)) if _closes(lines[i], fence)), None)
+        if close:
+            index = close + 1
+            continue
+        yield lines[index]
+        index += 1
+
+
 def _count_findings(findings: Path) -> int:
     """The `- ` lines of the findings. The lines under Verification limits and a "- None." line are not findings."""
     count, limits = 0, False
-    for line in findings.read_text(encoding="utf-8", errors="replace").splitlines():
+    for line in unfenced_lines(findings.read_text(encoding="utf-8", errors="replace")):
         heading = heading_text(line)
         if line.startswith("## ") or heading in FINDINGS_HEADINGS:
             limits = heading == "verification limits"

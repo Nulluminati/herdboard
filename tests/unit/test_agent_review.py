@@ -317,6 +317,30 @@ class RequestTests(AgentReviewTestCase):
             with self.subTest(bullet=bullet):
                 self.assertFalse(agent_review.is_none_bullet(bullet))
 
+    def test_a_line_inside_a_code_fence_is_not_counted_as_a_finding(self):
+        findings = self.root / "findings.md"
+        for fence in ("```", "~~~", "````", "  ```"):
+            with self.subTest(fence=fence):
+                findings.write_text(
+                    "## Confirmed problems\n- [high] a.py:1: bug.\n\n"
+                    f"{fence}diff\n- for a in b:\n+ for a in c:\n## Verification limits\n{fence}\n\n"
+                    "## Risks and questions\n- a.py:2: why?\n\n"
+                    "## Verification limits\n- The tests could not run.\n"
+                )
+                self.assertEqual(agent_review._count_findings(findings), 2)
+
+    def test_a_code_fence_closes_only_at_a_fence_of_its_own_kind(self):
+        findings = self.root / "findings.md"
+        findings.write_text(
+            "## Confirmed problems\n````\n```\n- not a finding\n~~~\n```\n- not a finding\n````\n- a.py:1: bug.\n"
+        )
+        self.assertEqual(agent_review._count_findings(findings), 1)
+
+    def test_a_code_fence_that_never_closes_hides_no_finding(self):
+        findings = self.root / "findings.md"
+        findings.write_text("## Confirmed problems\n- a.py:1: bug.\n```\n- a.py:2: bug.\n")
+        self.assertEqual(agent_review._count_findings(findings), 2)
+
     def test_a_findings_file_that_is_not_utf8_is_counted(self):
         findings = self.root / "findings.md"
         findings.write_bytes(b"## Confirmed problems\n- a.py:1: bad byte \xff.\n")
