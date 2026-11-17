@@ -128,6 +128,25 @@ class ScheduleTests(LocalTime):
         parse_schedule("every 52 weeks")
 
 
+class AnchorTests(LocalTime):
+    def test_the_day_the_automation_was_added_still_anchors_it(self):
+        item = Automation("a123", "Every other day", "every 2 days", created="2026-11-17T10:00:00+01:00")
+        entry = {"last_due": "2026-11-18T09:00:00+01:00"}
+        self.assertEqual(item.anchor(entry), date(2026, 11, 17))
+
+    def test_an_automation_without_created_anchors_on_its_last_due(self):
+        item = Automation("a123", "Every other week", "every 2 weeks at 09:00")
+        schedule = item.parsed_schedule({"last_due": "2026-11-17T09:00:00+01:00"})
+        self.assertEqual(schedule.latest_at_or_before(local(2026, 11, 24, 9, 1)), local(2026, 11, 17, 9, 0))
+        self.assertEqual(schedule.next_after(local(2026, 11, 17, 9, 0)), local(2026, 12, 1, 9, 0))
+
+    def test_an_automation_without_created_or_runs_anchors_on_the_given_day(self):
+        item = Automation("a123", "Every other day", "every 2 days")
+        self.assertIsNone(item.anchor())
+        schedule = item.parsed_schedule(today=date(2026, 11, 17))
+        self.assertEqual(schedule.next_after(local(2026, 11, 17, 8, 0)), local(2026, 11, 17, 9, 0))
+
+
 class AutomationTestCase(LocalTime):
     def setUp(self):
         super().setUp()
@@ -650,6 +669,23 @@ class TickTests(AutomationTestCase):
         self.assertTrue(any("skipped 2" in m for m in messages))
         self.assertIn("2026-10-23 09:00", messages[0])
 
+    def test_an_automation_without_created_runs_at_its_interval_not_every_day(self):
+        path = automations.definitions_path(self.config)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            '[[automation]]\nid = "a123"\ntitle = "Every other day"\nschedule = "every 2 days at 09:00"\n',
+            encoding="utf-8",
+        )
+        # The first tick records the entry's first due time and starts with the next one.
+        self.assertEqual(automations.tick(self.store, now=local(2026, 11, 17, 9, 1))["runs"], [])
+        self.assertEqual(automations.tick(self.store, now=local(2026, 11, 18, 9, 1))["runs"], [])
+        runs = automations.tick(self.store, now=local(2026, 11, 19, 9, 1))["runs"]
+        self.assertEqual([r["id"] for r in runs], ["a123"])
+        automations.tick(self.store, now=local(2026, 11, 20, 9, 1))
+        self.assertEqual(len(self.cards()), 1)
+        automations.tick(self.store, now=local(2026, 11, 21, 9, 1))
+        self.assertEqual(len(self.cards()), 2)
+
     def test_a_paused_automation_never_runs(self):
         added = self.add()
         automations.set_enabled(self.store, added.id, False)
@@ -773,6 +809,17 @@ class TickTests(AutomationTestCase):
         # Berlin repeats 02:00 to 03:00 on 2026-10-25.
         self.ticks_over(datetime(2026, 10, 24, 22, 0, tzinfo=UTC), 6)
         self.assertEqual(len(self.cards()), 1)
+
+    def test_listing_counts_an_interval_without_created_from_its_last_due(self):
+        path = automations.definitions_path(self.config)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            '[[automation]]\nid = "a123"\ntitle = "Every other day"\nschedule = "every 2 days at 09:00"\n',
+            encoding="utf-8",
+        )
+        automations._update_state("a123", last_due=local(2026, 11, 17, 9, 0).isoformat(timespec="seconds"))
+        entry = automations.listing(self.store, now=local(2026, 11, 18, 9, 2))[0]
+        self.assertEqual(entry["next_due"], local(2026, 11, 19, 9, 0).isoformat())
 
     def test_listing_has_the_next_due_and_the_last_run(self):
         added = self.add(created=local(2026, 10, 23, 8, 0))

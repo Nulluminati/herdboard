@@ -202,12 +202,18 @@ class Automation:
     # When the automation was added: the first run is the first due time after it.
     created: str | None = None
 
-    def parsed_schedule(self) -> Schedule:
-        return parse_schedule(self.schedule, self.anchor())
+    def parsed_schedule(self, entry: dict | None = None, today: date | None = None) -> Schedule:
+        return parse_schedule(self.schedule, self.anchor(entry, today))
 
-    def anchor(self) -> date | None:
+    def anchor(self, entry: dict | None = None, today: date | None = None) -> date | None:
+        """The day an interval schedule counts from: the day the automation was added, else the
+        day of its last due time. `entry` is the automation's run state. `today` anchors an
+        automation that has neither, until its first tick records the due time it starts from."""
         created = _time(self.created)
-        return created.date() if created else None
+        if created:
+            return created.date()
+        last_due = _time(entry.get("last_due")) if isinstance(entry, dict) else None
+        return last_due.date() if last_due else today
 
 
 STRING_FIELDS = (
@@ -697,11 +703,11 @@ def tick(store, now: datetime | None = None, *, config_file: Path | None = None)
 def _due_run(item: Automation, state: dict, now: datetime) -> tuple[datetime, int] | None:
     """The due time to run now and the number of due times it skips, or None. A due time is recorded
     before the run, so a run that fails or crashes is never repeated."""
-    schedule = item.parsed_schedule()
+    entry = state.get(item.id) if isinstance(state.get(item.id), dict) else {}
+    schedule = item.parsed_schedule(entry, now.date())
     due = schedule.latest_at_or_before(now)
     if due is None:
         return None
-    entry = state.get(item.id) if isinstance(state.get(item.id), dict) else {}
     floor = _time(entry.get("last_due")) or _time(item.created)
     if floor is None:
         # Without a creation time, the automation starts with its next due time.
@@ -722,7 +728,7 @@ def listing(store, now: datetime | None = None) -> list[dict]:
     for item in load(store.config):
         entry = state.get(item.id) if isinstance(state.get(item.id), dict) else {}
         try:
-            next_due = item.parsed_schedule().next_after(max(now, _time(entry.get("last_due")) or now))
+            next_due = item.parsed_schedule(entry, now.date()).next_after(max(now, _time(entry.get("last_due")) or now))
             next_text = next_due.isoformat(timespec="seconds") if item.enabled else None
             problem = None
         except HerdboardError as error:
