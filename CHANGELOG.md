@@ -6,6 +6,15 @@ All notable changes to herdboard are in this file. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-17
+
+### Added
+
+- herdboard now starts pi without the flags that pi-extensions adds
+  (`--approval-reject`, `--approval-mode` and `--sandbox`) when pi does not list
+  them. It warns with a Herdr notification, a stderr line and a card log entry
+  that name the missing extension and link to pi-extensions.
+
 ### Changed
 
 - `S` with Claude now asks for the model and the effort level, as it does for
@@ -27,6 +36,19 @@ All notable changes to herdboard are in this file. The format follows
 - An automation run without an agent of its own now starts with the agent's
   default thinking level when `start_agent` does not take the saved level. The
   run failed after it added a card.
+- The pi pull request reviewer now starts with `--no-approve`. pi ran the
+  `.pi/` extensions of the pull request checkout in its own process, outside
+  the reviewer sandbox.
+- The agent review count now counts only findings. It skips a `- None.`
+  bullet, with or without emphasis, a line inside a fenced code block, and the
+  text under a Verification limits heading in any style.
+- An approver verdict now counts in any capitalisation, such as
+  `Verdict: Approve`. The factory read it as an unknown verdict and lowered the
+  run to changes needed.
+- A byte that is not UTF-8 no longer stops the work. The pull request diff
+  keeps such bytes, herdboard opens the pull request from such a `pr.md`, and
+  the factory run reads such findings and verdicts.
+- A failed pull request worker no longer blocks the next merge.
 
 ## [0.2.0] - 2026-11-11
 
