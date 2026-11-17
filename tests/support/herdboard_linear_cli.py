@@ -1,5 +1,9 @@
+import functools
 from pathlib import Path
+from unittest import mock
 
+from herdboard import cli
+from herdboard.linear_writes import LinearWriter
 from herdboard.store import Store
 from support.herdboard_cli import CliTestCase
 from support.herdboard_linear_source import LinearEnvTestCase
@@ -11,6 +15,8 @@ class LinearCliCase(CliTestCase, LinearEnvTestCase):
         cli_root = self.tmp
         LinearEnvTestCase.setUp(self)
         self.cli_tmp = cli_root
+        # Verification reads after an unknown write result need no real wait against the fake.
+        self.enterContext(mock.patch.object(cli, "LinearWriter", functools.partial(LinearWriter, wait=lambda _: None)))
 
     def refs(self, data):
         return [card["ref"] for card in data["cards"]]

@@ -46,7 +46,8 @@ class LinearBoardCase(BoardTestCase, LinearEnvTestCase):
             linear_active=active,
             available=views.available,
             linear_interval=linear_interval,
-            linear_writer=LinearWriter(self.config, source),
+            # Verification reads after an unknown write result need no real wait against the fake.
+            linear_writer=LinearWriter(self.config, source, wait=lambda _: None),
             **kwargs,
         )
         app.animation_level = "none"
