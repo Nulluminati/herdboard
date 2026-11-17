@@ -175,6 +175,16 @@ class BriefTests(unittest.TestCase):
                     self.assertIn(part, text)
                 self.assertNotIn("--json edit", text)
 
+    def test_the_brief_names_the_card_board_folder_not_a_fixed_path(self):
+        text = self.brief(todo(path=Path("/elsewhere/todos/boards/x")))
+        self.assertIn("Do not edit the board files in `/elsewhere/todos/boards/x`.", text)
+        self.assertNotIn("~/todos", text)
+
+    def test_a_linear_card_has_no_board_folder_so_the_brief_names_no_path(self):
+        text = self.brief(issue())
+        self.assertIn("Do not edit the board files by hand.", text)
+        self.assertNotIn("board files in `", text)
+
     def test_the_cli_command_is_used_as_given(self):
         text = brief_text(
             todo(),

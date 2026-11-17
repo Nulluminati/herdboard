@@ -220,10 +220,16 @@ def brief_text(
             f'Log each pull request that you merged or left, and why: `{command} --json log {ref} "..."`',
             "",
         ]
+    # The sentence names the board folder the card is on, not a hard-coded one. Linear cards
+    # have no board folder (`card.path` is None), so their brief names no path.
+    if card.path:
+        do_not_edit = f"Do not edit the board files in `{card.path}`."
+    else:
+        do_not_edit = "Do not edit the board files by hand."
     lines += [
         "## Keep the card up to date",
         "",
-        "Use the herdboard CLI for every card change. Do not edit the board files in `~/todos`.",
+        f"Use the herdboard CLI for every card change. {do_not_edit}",
         "",
         f"- Read the card again: `{command} --json show {ref}`",
     ]
