@@ -525,6 +525,14 @@ class ReviewerTests(PrReviewTestCase):
         self.assertEqual(arguments[-2:], ["--", "Read it"])
         self.assertIn("high", arguments)
 
+    def test_pi_ignores_the_pull_requests_project_local_files(self):
+        # pi loads `.pi/extensions/` of a trusted folder in its own process, outside the --sandbox policy.
+        for flags in (None, frozenset()):
+            with self.subTest(flags=flags):
+                arguments = pr_reviews.reviewer_arguments("pi", "Read it", Path("/pr"), None, None, flags)
+                self.assertIn("--no-approve", arguments[: arguments.index("--")])
+                self.assertNotIn("--approve", arguments)
+
     def test_start_reviewer_keeps_the_checkout_read_only(self):
         record = self.record(status=None, reviewed_sha=None)
         pr_reviews.start_reviewer(KEY, record, self.pr(), "pi", None, None)
@@ -556,7 +564,9 @@ class ReviewerTests(PrReviewTestCase):
 
     def test_pi_reviewer_arguments_follow_pis_flags(self):
         arguments = pr_reviews.reviewer_arguments("pi", "Read it", Path("/pr"), None, None, frozenset())
-        self.assertEqual(arguments[:-2], sandbox.pi_reviewer_options(None, Path("/pr"), False, True, frozenset()))
+        options = sandbox.pi_reviewer_options(None, Path("/pr"), False, True, frozenset())
+        self.assertEqual(arguments[: len(options)], options)
+        self.assertEqual(arguments[len(options) :], ["--no-approve", "--", "Read it"])
 
     def test_the_prompt_names_the_session_and_forbids_a_submit(self):
         text = pr_reviews.prompt_text(self.record(), self.pr())

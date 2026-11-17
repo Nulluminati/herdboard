@@ -599,6 +599,9 @@ def reviewer_arguments(
         options = (["--model", model] if model else []) + (["--thinking", thinking] if thinking else [])
         return [
             *sandbox.pi_reviewer_options(None, checkout, browser=False, hunk=True, flags=pi_flags),
+            # pi runs a trusted folder's `.pi/` extensions in its own process, outside the --sandbox policy.
+            # The PR writes that folder, so pi ignores its project-local files.
+            "--no-approve",
             *options,
             "--",
             prompt,
