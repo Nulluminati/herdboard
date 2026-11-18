@@ -134,6 +134,18 @@ class MarkTests(WorktreeCase):
         git_changes.mark([item])
         self.assertEqual(item.changes, Changes(1, 0, 1))
 
+    def test_mark_counts_each_card_in_its_own_worktree(self):
+        other = self.root / "other"
+        self.git(self.repo, "worktree", "add", "-q", "-b", "feat/y", str(other), "main")
+        self.write(
+            {"t123": self.record(), "t456": {**self.record(ref="t456", branch="feat/y"), "worktree_path": str(other)}}
+        )
+        (self.worktree / "app.py").write_text("one\ntwo\nthree\nfour\n")
+        (other / "app.py").write_text("one\n")
+        cards = [card("t123"), card("t456")]
+        git_changes.mark(cards)
+        self.assertEqual([item.changes for item in cards], [Changes(1, 0, 1), Changes(0, 2, 1)])
+
     def test_a_record_found_by_its_ref_field_counts(self):
         self.write({"api/t123": self.record()})
         item = card("t123")

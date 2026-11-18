@@ -8,6 +8,7 @@ count and no error.
 from __future__ import annotations
 
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,6 +18,8 @@ from .model import HerdboardError
 # An untracked file larger than this, or with a NUL byte in its first BINARY_PROBE bytes, does not count.
 MAX_UNTRACKED_BYTES = 1024 * 1024
 BINARY_PROBE = 8000
+# Starting git costs more than its work, so the worktrees count at the same time.
+MAX_WORKERS = 8
 
 
 @dataclass(frozen=True)
@@ -84,13 +87,20 @@ def mark(cards) -> None:
         records = start._read(start.state_dir() / "starts.json")
     except HerdboardError:
         records = {}
+    jobs = []
     for card in cards:
-        card.changes = None
         if not card.worktree or card.repoless:
             continue
         record = records.get(card.ref)
         if not isinstance(record, dict):
             record = next((r for r in records.values() if isinstance(r, dict) and r.get("ref") == card.ref), None)
-        if not record or not record.get("worktree_path"):
-            continue
-        card.changes = worktree_changes(Path(record["worktree_path"]), record.get("base"), record.get("branch"))
+        if record and record.get("worktree_path"):
+            jobs.append((card, Path(record["worktree_path"]), record.get("base"), record.get("branch")))
+    found = {}
+    if jobs:
+        with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(jobs))) as pool:
+            counts = pool.map(lambda job: worktree_changes(*job[1:]), jobs)
+            found = {id(card): changes for (card, *_), changes in zip(jobs, counts, strict=True)}
+    # The board draws while the count runs, so each card keeps its old count until the new one is ready.
+    for card in cards:
+        card.changes = found.get(id(card))
