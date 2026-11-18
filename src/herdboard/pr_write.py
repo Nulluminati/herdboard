@@ -77,7 +77,9 @@ def card_text(card) -> tuple[str, str]:
     return card.title, "\n".join(card.body).strip()
 
 
-def request_text(card, ref: str, data: dict, folder: Path, templates: list[Path], entries: list[dict]) -> str:
+def request_text(
+    card, ref: str, data: dict, folder: Path, templates: list[Path], entries: list[dict], command: str
+) -> str:
     title, description = card_text(card)
     log = "\n".join(f"- {e['time']} · {e['author']} · {e['message']}" for e in entries) or "- (none)"
     if len(templates) == 1:
@@ -117,16 +119,17 @@ Write `{folder / "pr.md"}`. Its first line is the title. The rest is the descrip
 - Do not run `gh`, push, or change any file other than `{folder / "pr.md"}`.
 - Do not run the project's code, tests or builds. Do not start a server. Do not use `terminal-browser`.
 - To change the description after the pull request opens, edit `{folder / "pr.md"}` and run
-  `herdboard pr-sync {ref}`.
+  `{command} pr-sync {ref}`.
 """
 
 
-def prompt_text(folder: Path, ref: str) -> str:
+def prompt_text(folder: Path, ref: str, command: str) -> str:
+    """The writer's prompt. `command` runs this herdboard, as `start.herdboard_command` gives it."""
     return (
         f"Write the pull request title and description for this work. Read {folder / 'request.md'} "
         f"and follow it. Write the result to {folder / 'pr.md'} and nowhere else. "
         f"To change the description after the pull request opens, edit {folder / 'pr.md'} "
-        f"and run `herdboard pr-sync {ref}`. "
+        f"and run `{command} pr-sync {ref}`. "
         "Do not run gh, push, or change code. Do not run the project's code, tests or builds. "
         "Do not use terminal-browser."
     )
@@ -151,13 +154,14 @@ def request(merger, card, ref, key, record, worktree: Path, base: str, rewrite_u
     data = {"worktree": str(worktree), "branch": record["branch"], "base": base}
     entries = activity.read(config, ref)
     requests = state_dir() / "prs"
+    command = start_module.herdboard_command(merger.config_file)
     try:
         patch = merge._git(worktree, "diff", f"{base}...HEAD").stdout
         requests.mkdir(parents=True, exist_ok=True)
         folder = Path(tempfile.mkdtemp(prefix=f"{safe_key(key)}-{time.strftime('%Y%m%d-%H%M%S')}-", dir=requests))
         (folder / "branch.patch").write_text(patch, encoding="utf-8", errors="surrogateescape")
         (folder / "request.md").write_text(
-            request_text(card, ref, data, folder, find_templates(worktree), entries), encoding="utf-8"
+            request_text(card, ref, data, folder, find_templates(worktree), entries, command), encoding="utf-8"
         )
     except OSError as error:
         raise merge.MergeError(f"{requests}: cannot write the pull request request: {error}", "io") from error
@@ -186,7 +190,9 @@ def request(merger, card, ref, key, record, worktree: Path, base: str, rewrite_u
             "--pane",
             pane,
             "--",
-            *reviewer_arguments(kind, prompt_text(folder, ref), folder, worktree, model, thinking, pi_flags=flags),
+            *reviewer_arguments(
+                kind, prompt_text(folder, ref, command), folder, worktree, model, thinking, pi_flags=flags
+            ),
             tolerated=("timeout", "agent_not_ready"),
         )
         activity.record_pane_agent(pane, kind)
@@ -314,8 +320,11 @@ def _open(data: dict, folder: Path) -> tuple[str, str]:
     return created.strip().splitlines()[-1], "PR opened"
 
 
-def wait(store, ref, folder: Path, writer=None) -> int:
-    """The background worker: wait for the description and open the pull request. Returns the exit code."""
+def wait(store, ref, folder: Path, writer=None, config_file: Path | None = None) -> int:
+    """The background worker: wait for the description and open the pull request. Returns the exit code.
+
+    `config_file` is the board's config, which the prompt to the card's agent names.
+    """
     folder = Path(folder)
     try:
         data = json.loads((folder / "pr_write.json").read_text(encoding="utf-8"))
@@ -339,7 +348,7 @@ def wait(store, ref, folder: Path, writer=None) -> int:
                 ],
                 timeout=WRITE_TIMEOUT_SECONDS + 60,
             )
-            herdr("agent", "prompt", pane, prompt_text(folder, ref))
+            herdr("agent", "prompt", pane, prompt_text(folder, ref, start_module.herdboard_command(config_file)))
         _wait_for_text(folder / "pr.md", pane, who)
         error = None
     except (HerdboardError, OSError, subprocess.TimeoutExpired) as failure:

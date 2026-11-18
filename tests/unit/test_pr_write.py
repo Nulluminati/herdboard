@@ -58,10 +58,10 @@ class PrWriteTestCase(PullRequestTestCase):
         self.fake.review_folder = self.folder = Path(result["folder"])
         return result
 
-    def wait(self):
+    def wait(self, config_file=None):
         self.errors = io.StringIO()
         with contextlib.redirect_stderr(self.errors):
-            return pr_write.wait(self.store, self.card.ref, self.folder)
+            return pr_write.wait(self.store, self.card.ref, self.folder, config_file=config_file)
 
     def created(self):
         return [c for c in self.gh.calls if c[:2] == ["pr", "create"]]
@@ -444,13 +444,33 @@ class StartedTimeTests(PrWriteTestCase):
     def test_the_request_tells_the_agent_how_to_sync_later(self):
         self.request()
         text = (self.folder / "request.md").read_text()
-        self.assertIn(f"herdboard pr-sync {self.card.ref}", text)
+        command = start.herdboard_command(None)
+        self.assertIn(f"`{command} pr-sync {self.card.ref}`", text)
         self.assertIn("Do not run `gh`", text)
-        prompt = pr_write.prompt_text(self.folder, self.card.ref)
-        self.assertIn(f"herdboard pr-sync {self.card.ref}", prompt)
+        prompt = pr_write.prompt_text(self.folder, self.card.ref, command)
+        self.assertIn(f"`{command} pr-sync {self.card.ref}`", prompt)
         self.assertIn("Do not run gh", prompt)
         self.assertIn("Do not run the project's code, tests or builds", prompt)
         self.assertIn("Do not use terminal-browser", prompt)
+
+    def test_the_sync_command_names_the_config_that_runs_this_board(self):
+        custom = self.root / "custom.toml"
+        self.merger.config_file = custom
+        command = start.herdboard_command(custom)
+        self.assertIn(f"--config {custom}", command)
+        self.request()
+        self.assertIn(f"`{command} pr-sync {self.card.ref}`", (self.folder / "request.md").read_text())
+        self.assertEqual(self.wait(config_file=custom), 0)
+        prompt = next(c[3] for c in self.fake.calls if c[:2] == ["agent", "prompt"])
+        self.assertIn(f"`{command} pr-sync {self.card.ref}`", prompt)
+
+    def test_a_writer_agent_gets_the_sync_command_of_this_board(self):
+        custom = self.root / "custom.toml"
+        self.merger.config_file = custom
+        self.fake.agent = False
+        self.request()
+        start_call = next(c for c in self.calls("agent", "start") if c[2].endswith("-pr"))
+        self.assertIn(f"`{start.herdboard_command(custom)} pr-sync {self.card.ref}`", start_call[-1])
 
 
 class SyncTests(PrWriteTestCase):

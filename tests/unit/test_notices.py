@@ -10,7 +10,7 @@ from herdboard.config import Config
 from herdboard.store import Store
 from support.herdboard_start import FakeHerdr
 
-PROMPT = "Card {ref} changed: details. Run `herdboard --json show {ref}` and read the changes before you go on."
+PROMPT = "Card {ref} changed: details. Run `{command} --json show {ref}` and read the changes before you go on."
 
 
 class NoticeTests(unittest.TestCase):
@@ -56,8 +56,19 @@ class NoticeTests(unittest.TestCase):
             "error": None,
         }
         self.assertEqual(notice, expected)
-        self.assertEqual(self.prompts(), [["agent", "prompt", "w9:p1", PROMPT.format(ref=self.card.ref)]])
+        self.assertEqual(
+            self.prompts(),
+            [["agent", "prompt", "w9:p1", PROMPT.format(command=start.herdboard_command(None), ref=self.card.ref)]],
+        )
         self.assertEqual(self.log(), [f"Told agent hb-{self.card.ref}: details."])
+
+    def test_prompt_names_the_command_and_config_that_run_this_board(self):
+        self.record()
+        custom = self.root / "custom.toml"
+        notices.notify_card_agent(self.store, self.card.ref, ["details"], config_file=custom)
+        command = start.herdboard_command(custom)
+        self.assertIn(f"--config {custom}", command)
+        self.assertEqual(self.prompts()[0][3], PROMPT.format(command=command, ref=self.card.ref))
 
     def test_prompt_names_every_change(self):
         self.record()

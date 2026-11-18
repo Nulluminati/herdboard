@@ -893,13 +893,23 @@ def _cmd_attach(ctx: _Context) -> dict:
         removed = attachments.remove(ctx.store, ref, args.remove)
         activity.append(ctx.store, ref, f"Removed the attachment {removed['name']}.", activity.author())
         notice = notices.notify_card_agent(
-            ctx.store, ref, [f"attachment {removed['name']} removed"], skip=args.no_notify
+            ctx.store,
+            ref,
+            [f"attachment {removed['name']} removed"],
+            skip=args.no_notify,
+            config_file=config_path(args.config),
         )
         return {"ref": ref, "removed": removed, "notice": notice}
     path = args.file if args.file.is_absolute() else ctx.directory / args.file
     added = attachments.add(ctx.store, ref, path, args.name)
     activity.append(ctx.store, ref, f"Attached {added['name']}.", activity.author())
-    notice = notices.notify_card_agent(ctx.store, ref, [f"attachment {added['name']} added"], skip=args.no_notify)
+    notice = notices.notify_card_agent(
+        ctx.store,
+        ref,
+        [f"attachment {added['name']} added"],
+        skip=args.no_notify,
+        config_file=config_path(args.config),
+    )
     return {"ref": ref, "attachment": added, "notice": notice}
 
 
@@ -1080,7 +1090,13 @@ def _cmd_edit(ctx: _Context) -> dict:
         before = ctx.store.show(args.ref)
         card = ctx.store.edit(args.ref, title=args.title, body=lines, **fields)
         # Before the parent step, so the agent learns of the saved change even when the parent is refused.
-        notice = notices.notify_card_agent(ctx.store, card.ref, notices.edit_changes(before, card), skip=args.no_notify)
+        notice = notices.notify_card_agent(
+            ctx.store,
+            card.ref,
+            notices.edit_changes(before, card),
+            skip=args.no_notify,
+            config_file=config_path(args.config),
+        )
     if args.parent is not None or args.no_parent:
         card = ctx.store.set_parent(card.ref if card else args.ref, parent)
     return {"card": card, "edited": True, "notice": notice}
@@ -1368,7 +1384,13 @@ def _cmd_merge(ctx: _Context) -> dict:
 
 def _cmd_pr_wait(ctx: _Context) -> dict:
     ref = ctx.args.ref
-    code = pr_write.wait(ctx.store, ref, ctx.args.folder, writer=ctx.writer if LINEAR_REF.match(ref) else None)
+    code = pr_write.wait(
+        ctx.store,
+        ref,
+        ctx.args.folder,
+        writer=ctx.writer if LINEAR_REF.match(ref) else None,
+        config_file=config_path(ctx.args.config),
+    )
     return {"ref": ref, "exit_code": code}
 
 

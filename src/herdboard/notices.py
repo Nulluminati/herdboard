@@ -1,6 +1,7 @@
 """Tell a started card's live work agent that the user changed the card's title, details or attachments."""
 
 import os
+from pathlib import Path
 
 from . import activity, start
 from .model import HerdboardError
@@ -17,8 +18,12 @@ def edit_changes(before: CardView, after: CardView) -> list[str]:
     return changes
 
 
-def notify_card_agent(store, ref: str, changes: list[str], skip: bool = False) -> dict | None:
+def notify_card_agent(
+    store, ref: str, changes: list[str], skip: bool = False, config_file: Path | None = None
+) -> dict | None:
     """Prompt the card's live work agent to read the card again.
+
+    The prompt names the command that runs this herdboard with `config_file`, so the agent reads the same card.
 
     None when there is nothing to tell: no changes, no start record or no live agent. Else the
     notice, with `status` sent, skipped (`reason` no_notify or self) or failed (with `error`).
@@ -55,7 +60,8 @@ def notify_card_agent(store, ref: str, changes: list[str], skip: bool = False) -
     if reason is not None:
         return {**notice, "status": "skipped", "reason": reason}
     labels = ", ".join(changes)
-    text = f"Card {ref} changed: {labels}. Run `herdboard --json show {ref}` and read the changes before you go on."
+    command = start.herdboard_command(config_file)
+    text = f"Card {ref} changed: {labels}. Run `{command} --json show {ref}` and read the changes before you go on."
     try:
         start.herdr("agent", "prompt", record["pane_id"], text)
     except HerdboardError as error:

@@ -530,7 +530,8 @@ class NoticeTests(CliTestCase):
         data = self.run_json("edit", self.ref, "--body", "new")
         self.assertEqual((data["notice"]["status"], data["notice"]["changes"]), ("sent", ["details"]))
         self.assertEqual(len(self.prompts()), 1)
-        self.assertIn(f"herdboard --json show {self.ref}", self.prompts()[0])
+        command = start.herdboard_command(self.config)
+        self.assertIn(f"{command} --json show {self.ref}", self.prompts()[0])
         log = self.run_json("show", self.ref)["log"]
         self.assertEqual(log[-1]["message"], f"Told agent hb-{self.ref}: details.")
         self.assertEqual(log[-1]["author"], "herdboard")
