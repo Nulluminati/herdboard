@@ -153,10 +153,14 @@ The markers below the card are:
 | `PR open`, `PR merged`, `PR closed` | The state of the card's pull request. The board reads it at most once a minute |
 | `worktree removed` | The card's worktree folder is gone |
 | `worktree still exists` | The card is in Done, but its worktree is still there. Run `finish` |
+| `+12 −3` | The lines that the card's worktree adds (green) and removes (red) since its branch left the base: the branch commits, the uncommitted edits and the untracked text files. The card detail also shows the number of changed files |
+| `no changes` | The card's worktree has no changes since its branch left the base |
 
 The board checks planner panes every two seconds. If Herdr cannot answer, the marker keeps the recorded planner type. A missing or unreadable planning state file hides only the planning markers, not the cards.
 
 The board checks the attachments folder at the same interval. A folder that cannot be read hides only the `≡` markers.
+
+The board counts the worktree changes at the same interval. An untracked binary file, or one larger than 1 MB, does not count. When a Git command fails, or the start record has no base and the branch has no upstream, the card shows no change marker.
 
 ## Agent states
 

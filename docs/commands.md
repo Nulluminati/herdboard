@@ -56,6 +56,7 @@
 - `<id>` is a todo ID (`t7k2`) or a Linear identifier (`ENG-123`). `<aid>` is an automation ID (`a7k2`).
 - Every command takes `--json`, `--config FILE` and `-C DIR` (run as if in `DIR`).
 - With `--json`, output goes to standard output as JSON. An error has the form `{"error": {"code": "…", "message": "…"}}`. The skill lists the error codes.
+- In `show --json` and `list --json`, each card's `changes` gives the lines that its worktree changes since its branch left the base: `{"added": 12, "removed": 3, "files": 4}`. The count includes the uncommitted edits and the untracked text files. It is `null` for a card without a worktree, a card without a repository, or when Git fails. Other commands give `null`.
 - Exit codes: 0 success, 1 user error, 2 conflict (the card changed, the lock is held, a rebase conflict), 3 Linear error.
 - A command that asks a question in a terminal fails without a terminal or with `--json`. `delete --yes` and `migrate --yes` confirm without a question.
 
