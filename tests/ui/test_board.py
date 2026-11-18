@@ -13,6 +13,7 @@ from herdboard.identity import RepoIdentity
 from herdboard.model import ConflictError, HerdboardError, IoError, NotFoundError
 from herdboard.store import Store
 from support.herdboard_board import SIZE, BoardTestCase, fill, settle
+from support.herdboard_start import FakeHerdr
 from support.paths import ROOT
 
 FIXTURE = ROOT / "tests/fixtures/kanban-2.0.51-full.md"
@@ -332,6 +333,62 @@ class NavigationTests(BoardTestCase):
             self.assertEqual(card.body, ["detail one", "  nested"])
             self.assertIn("a1 renamed", self.selected(app)[0])
             self.assertNotIsInstance(app.screen, EditScreen)
+
+    def started_with_agent(self, ref):
+        """A start record with a live agent for the card, and a fake Herdr that records the calls."""
+        from herdboard import start as start_module
+
+        self.enterContext(mock.patch.dict(os.environ, {"XDG_STATE_HOME": str(self.root / "notice-state")}))
+        os.environ.pop("HERDR_PANE_ID", None)
+        record = {"ref": ref, "agent_name": f"hb-{ref}", "pane_id": "w9:p1"}
+        start_module._write(start_module.state_dir() / "starts.json", {ref: record})
+        fake = FakeHerdr(self.root)
+        fake.agent = True
+        self.enterContext(mock.patch.object(start_module, "command", fake))
+        return fake
+
+    async def edit_in_dialog(self, app, pilot, **values):
+        await pilot.pause()
+        await pilot.press("e")
+        await pilot.pause()
+        for name, value in values.items():
+            widget = app.screen.query_one(f"#card-{name}")
+            if name == "body":
+                widget.text = value
+            else:
+                widget.value = value
+        await pilot.press("ctrl+s")
+        await settle(pilot)
+
+    async def test_notice_dialog_body_edit_tells_the_agent(self):
+        ref = self.refs(self.repo_path)["a1"][0]
+        fake = self.started_with_agent(ref)
+        app = self.make_app()
+        async with app.run_test(size=SIZE) as pilot:
+            await self.edit_in_dialog(app, pilot, body="new detail")
+            prompts = [call for call in fake.calls if call[:2] == ["agent", "prompt"]]
+            self.assertEqual(len(prompts), 1)
+            self.assertTrue(prompts[0][3].startswith(f"Card {ref} changed: details. "))
+
+    async def test_notice_dialog_tags_only_edit_tells_nobody(self):
+        ref = self.refs(self.repo_path)["a1"][0]
+        fake = self.started_with_agent(ref)
+        app = self.make_app()
+        async with app.run_test(size=SIZE) as pilot:
+            await self.edit_in_dialog(app, pilot, tags="web")
+            self.assertEqual(self.store.show(ref).tags, ["web"])
+            self.assertEqual([call for call in fake.calls if call[:2] == ["agent", "prompt"]], [])
+
+    async def test_notice_failed_prompt_warns_and_keeps_the_edit(self):
+        ref = self.refs(self.repo_path)["a1"][0]
+        fake = self.started_with_agent(ref)
+        fake.fail = "agent prompt"
+        app = self.make_app()
+        async with app.run_test(size=SIZE) as pilot:
+            await self.edit_in_dialog(app, pilot, body="new detail")
+            self.assertEqual(self.store.show(ref).body, ["new detail"])
+            warnings = [n.message for n in app._notifications if n.severity == "warning"]
+            self.assertTrue(any(message.startswith(f"Could not tell agent hb-{ref}:") for message in warnings))
 
     async def test_tab_moves_between_title_and_details(self):
         app = self.make_app()

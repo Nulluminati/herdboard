@@ -19,6 +19,7 @@ from . import (
     factory,
     git_changes,
     mockup,
+    notices,
     plan,
     pr_reviews,
     pr_write,
@@ -47,6 +48,9 @@ from .views import INIT_MESSAGE, VIEW_NAMES, LinearResult, Views
 
 class UsageError(HerdboardError):
     code = "usage"
+
+
+NO_NOTIFY_HELP = "do not tell the card's running agent about the change"
 
 
 def _option_tags(values: list[str]) -> list[str]:
@@ -164,6 +168,7 @@ def build_parser() -> argparse.ArgumentParser:
     kind = sub.add_mutually_exclusive_group()
     kind.add_argument("--type", help="set the card's type, such as bug or feature (the `types` setting)")
     kind.add_argument("--no-type", action="store_true", help="remove the card's type")
+    sub.add_argument("--no-notify", action="store_true", help=NO_NOTIFY_HELP)
 
     sub = command("log", "add an entry to a card's activity log")
     sub.add_argument("ref")
@@ -174,6 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_argument("file", nargs="?", type=Path)
     sub.add_argument("--name", help="the attachment's name; default: the file's name")
     sub.add_argument("--remove", metavar="NAME", help="remove the attachment with this name")
+    sub.add_argument("--no-notify", action="store_true", help=NO_NOTIFY_HELP)
 
     sub = command("mockup", "generate UI mockup drafts with Codex and show them; attach the approved one")
     sub.add_argument("ref")
@@ -886,11 +892,15 @@ def _cmd_attach(ctx: _Context) -> dict:
     if args.remove is not None:
         removed = attachments.remove(ctx.store, ref, args.remove)
         activity.append(ctx.store, ref, f"Removed the attachment {removed['name']}.", activity.author())
-        return {"ref": ref, "removed": removed}
+        notice = notices.notify_card_agent(
+            ctx.store, ref, [f"attachment {removed['name']} removed"], skip=args.no_notify
+        )
+        return {"ref": ref, "removed": removed, "notice": notice}
     path = args.file if args.file.is_absolute() else ctx.directory / args.file
     added = attachments.add(ctx.store, ref, path, args.name)
     activity.append(ctx.store, ref, f"Attached {added['name']}.", activity.author())
-    return {"ref": ref, "attachment": added}
+    notice = notices.notify_card_agent(ctx.store, ref, [f"attachment {added['name']} added"], skip=args.no_notify)
+    return {"ref": ref, "attachment": added, "notice": notice}
 
 
 def _cmd_mockup(ctx: _Context) -> dict:
@@ -1059,14 +1069,18 @@ def _cmd_edit(ctx: _Context) -> dict:
     if args.due is not None or args.no_due:
         fields["due"] = args.due
     card = None
+    changes: list[str] = []
     if args.title is not None or lines is not None or fields:
+        before = ctx.store.show(args.ref)
         card = ctx.store.edit(args.ref, title=args.title, body=lines, **fields)
+        changes = notices.edit_changes(before, card)
     if args.parent is not None or args.no_parent:
         if args.parent is not None and LINEAR_REF.match(args.parent):
             raise UsageError("A Linear issue's sub-issues are set in Linear; --parent takes a todo")
         parent = ctx.store.show(args.parent).ref if args.parent is not None else None
         card = ctx.store.set_parent(card.ref if card else args.ref, parent)
-    return {"card": card, "edited": True}
+    notice = notices.notify_card_agent(ctx.store, card.ref, changes, skip=args.no_notify)
+    return {"card": card, "edited": True, "notice": notice}
 
 
 class ConfirmationRequired(HerdboardError):
@@ -2026,6 +2040,16 @@ def _linear_warnings(result: LinearResult) -> None:
         print(f"herdboard: warning: Linear data is stale (fetched {stamp})", file=sys.stderr)
 
 
+def _render_notice(notice: dict | None) -> None:
+    """The text lines of a notice to the card's agent: one when it went out, a warning when it failed."""
+    if notice is None:
+        return
+    if notice["status"] == "sent":
+        print(f"Told agent {notice['agent']}.")
+    elif notice["status"] == "failed":
+        print(f"herdboard: warning: Could not tell agent {notice['agent']}: {notice['error']}", file=sys.stderr)
+
+
 def _render(command: str, result: dict, as_json: bool, action: str | None = None) -> None:
     if command in ("board", "sidebar-refresh"):
         return
@@ -2173,6 +2197,8 @@ def _render(command: str, result: dict, as_json: bool, action: str | None = None
             print(f"{result['ref']}: removed {result['removed']['name']}")
         else:
             print(f"{result['ref']}: attached {result['attachment']['name']}")
+        if not as_json:
+            _render_notice(result["notice"])
         return
     if command == "archive" and "archived" in result:
         if as_json:
@@ -2265,6 +2291,8 @@ def _render(command: str, result: dict, as_json: bool, action: str | None = None
                 data["factory"] = result["factory"]
             if result.get("hint"):
                 data["hint"] = result["hint"]
+            if "notice" in result:
+                data["notice"] = result["notice"]
             if linear is not None:
                 data.update(_linear_json(linear))
             _emit_json(data)
@@ -2305,6 +2333,7 @@ def _render(command: str, result: dict, as_json: bool, action: str | None = None
     elif command == "edit":
         card = result["card"]
         print(f"{card.ref} edited ({card.board} / {card.column})")
+        _render_notice(result["notice"])
     else:
         print(_card_line(result["card"]))
         if result.get("hint"):

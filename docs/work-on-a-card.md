@@ -140,6 +140,10 @@ herdboard sets the author. In a card's agent pane, the author is the agent kind 
 
 Agents record progress in the log, not in the card. `edit` fails with `agent_edit_denied` in a card's agent pane. This guards against mistakes. It is not a security boundary.
 
+When you change the title, the details or the attachments of a started card, herdboard tells the card's live work agent. `edit`, `attach` and the board's edit dialog send the agent a prompt, such as ``Card toig changed: details, attachment spec.md added. Run `herdboard --json show toig` and read the changes before you go on.`` Claude Code queues the prompt while the agent works. The prompt does not contain the new text. herdboard adds a log entry, such as `Told agent hb-toig: details.` Changes of tags, due date, type or parent send no prompt. Planners, reviewers and pull request writers get no prompt.
+
+`--no-notify` on `edit` or `attach` sends no prompt. The `notice` key of the JSON result tells what happened: `null` when the card has no live agent or nothing to tell, else an object with `agent`, `pane_id`, `changes`, `status` (`sent`, `skipped` or `failed`), `reason` (`no_notify`, or `self` for a change from the agent's own pane) and `error`. A failed prompt does not undo the change: the exit code stays 0, the text output prints a warning, and the board shows a warning.
+
 ## Details pane
 
 Each card agent and each planner gets a small read-only pane on top, labeled `details - <id>`. Herdr draws its border and label, so the pane draws none of its own. It shows the card without going back to the board:

@@ -83,6 +83,8 @@ The activity log is the card's history. It works for todos and Linear issues, an
 
 Attachments hold documents too large for the card text. `show` lists them in `attachments`. The attachment `plan.md` is the card's plan: the agent that starts work on the card gets it in its brief.
 
+When `edit` changes the title or details of a started card, or `attach` adds or removes an attachment, herdboard prompts the card's live agent about it. The result's `notice` says what happened: `null` when the card has no live agent or nothing changed, else `status` `sent`, `skipped` (`reason` `no_notify` for `--no-notify`, `self` from the agent's own pane) or `failed` (with `error`; the change stays saved).
+
 `mockup` asks Codex for a UI mockup image of each prompt and shows the drafts in a pane next to yours. A draft is not an attachment: it stays in herdboard's state folder until `finish` or `archive`. Attach only a draft that the user approves, with a name `mockup-<slug>.png`. The work agent's brief points to these files. `--image FILE` revises a draft or follows a screenshot. Give the call a timeout of 10 minutes.
 
 Ask the user first before these. They change shared Linear data, open workspaces, or rewrite many cards:
@@ -166,7 +168,7 @@ Reviewers (`review --agent`, the `merge --pr` writer, `pr-review`) run in a sand
 
 1. Read the brief. It has the card's details, linked notes, the worktree and branch, and the exact herdboard command to use.
 2. Do the work that the card describes, in this worktree.
-3. Record progress, decisions and blockers with `herdboard --json log <id> "..."`. Do not change the card title or details: `edit` fails with `agent_edit_denied` in your pane.
+3. Record progress, decisions and blockers with `herdboard --json log <id> "..."`. Do not change the card title or details: `edit` fails with `agent_edit_denied` in your pane. When a prompt says `Card <id> changed: ...`, the user changed the card: run `herdboard --json show <id>` and follow the new details or attachments.
 4. Commit every change on the card's branch, with conventional commit messages.
 5. When the work is ready for the user to check, commit it, then run `herdboard --json move <id> Review`.
 6. When review feedback arrives, move the card to `In progress`. Fix, commit, and move it back to Review.

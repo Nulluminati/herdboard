@@ -7,11 +7,12 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from herdboard import cli
+from herdboard import cli, start
 from herdboard.model import ConflictError
 from herdboard.store import Store
 from support.git_env import isolated
 from support.herdboard_cli import CliTestCase, git
+from support.herdboard_start import FakeHerdr
 from support.paths import ROOT
 
 SRC = ROOT / "src"
@@ -503,6 +504,84 @@ class CommandTests(CliTestCase):
         card = self.run_json("add", "y", directory=self.plain)["card"]
         data = self.run_json("done", card["ref"], directory=self.plain)
         self.assertTrue(data["card"]["checked"])
+
+
+class NoticeTests(CliTestCase):
+    """`edit` and `attach` tell a started card's live agent about a change of its title, details or attachments."""
+
+    def setUp(self):
+        super().setUp()
+        self.enterContext(mock.patch.dict(os.environ))
+        os.environ.pop("HERDR_PANE_ID", None)
+        self.card = self.run_json("add", "ship", "--body", "old")["card"]
+        self.ref = self.card["ref"]
+        state = Path(os.environ["XDG_STATE_HOME"]) / "herdboard"
+        state.mkdir(parents=True, exist_ok=True)
+        record = {"ref": self.ref, "agent_name": f"hb-{self.ref}", "pane_id": "w9:p1"}
+        (state / "starts.json").write_text(json.dumps({self.ref: record}))
+        self.fake = FakeHerdr(Path(self.tmp.name))
+        self.fake.agent = True
+        self.enterContext(mock.patch.object(start, "command", self.fake))
+
+    def prompts(self):
+        return [call[3] for call in self.fake.calls if call[:2] == ["agent", "prompt"]]
+
+    def test_notice_edit_body_tells_the_agent(self):
+        data = self.run_json("edit", self.ref, "--body", "new")
+        self.assertEqual((data["notice"]["status"], data["notice"]["changes"]), ("sent", ["details"]))
+        self.assertEqual(len(self.prompts()), 1)
+        self.assertIn(f"herdboard --json show {self.ref}", self.prompts()[0])
+        log = self.run_json("show", self.ref)["log"]
+        self.assertEqual(log[-1]["message"], f"Told agent hb-{self.ref}: details.")
+        self.assertEqual(log[-1]["author"], "herdboard")
+
+    def test_notice_edit_text_output(self):
+        out, _ = self.run_cli("edit", self.ref, "--title", "ship it")
+        self.assertEqual(out.splitlines()[-1], f"Told agent hb-{self.ref}.")
+
+    def test_notice_edit_tags_only_tells_nobody(self):
+        data = self.run_json("edit", self.ref, "--tag", "x")
+        self.assertIsNone(data["notice"])
+        self.assertEqual(self.prompts(), [])
+
+    def test_notice_edit_with_no_notify_is_skipped(self):
+        data = self.run_json("edit", self.ref, "--body", "new", "--no-notify")
+        self.assertEqual((data["notice"]["status"], data["notice"]["reason"]), ("skipped", "no_notify"))
+        self.assertEqual(self.prompts(), [])
+
+    def test_notice_attach_and_remove_name_the_attachment(self):
+        spec = self.plain / "spec.md"
+        spec.write_text("spec\n")
+        data = self.run_json("attach", self.ref, str(spec))
+        self.assertEqual(data["notice"]["changes"], ["attachment spec.md added"])
+        data = self.run_json("attach", self.ref, "--remove", "spec.md")
+        self.assertEqual(data["notice"]["changes"], ["attachment spec.md removed"])
+        self.assertEqual(len(self.prompts()), 2)
+        self.assertIn("attachment spec.md removed", self.prompts()[1])
+
+    def test_notice_attach_with_no_notify_is_skipped(self):
+        spec = self.plain / "spec.md"
+        spec.write_text("spec\n")
+        data = self.run_json("attach", self.ref, str(spec), "--no-notify")
+        self.assertEqual(data["notice"]["reason"], "no_notify")
+        self.assertEqual(self.prompts(), [])
+
+    def test_notice_failed_prompt_keeps_the_edit(self):
+        self.fake.fail = "agent prompt"
+        data = self.run_json("edit", self.ref, "--body", "new")
+        self.assertEqual(data["notice"]["status"], "failed")
+        self.assertIn("test failure", data["notice"]["error"])
+        self.assertEqual(self.run_json("show", self.ref)["card"]["body"], ["new"])
+
+    def test_notice_failed_prompt_warns_in_text_output(self):
+        self.fake.fail = "agent prompt"
+        _, err = self.run_cli("edit", self.ref, "--body", "new")
+        self.assertIn(f"Could not tell agent hb-{self.ref}:", err)
+
+    def test_notice_edit_of_a_card_without_a_live_agent_is_null(self):
+        self.fake.agent = False
+        data = self.run_json("edit", self.ref, "--body", "new")
+        self.assertIsNone(data["notice"])
 
 
 class RepositoryTests(CliTestCase):

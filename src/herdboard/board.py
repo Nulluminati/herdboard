@@ -54,6 +54,7 @@ from . import (
     factory,
     git_changes,
     notes,
+    notices,
     pr_reviews,
     updates,
     verification,
@@ -6477,7 +6478,7 @@ class HerdboardApp(App):
         ref, before = screen.card.ref, screen.card
 
         def edit() -> CardView:
-            return self.store.edit(
+            card = self.store.edit(
                 ref,
                 title=fields.title,
                 body=fields.body,
@@ -6486,6 +6487,12 @@ class HerdboardApp(App):
                 type=fields.type,
                 due=fields.due,
             )
+            # Still in the worker thread: the notice calls Herdr. Its failure keeps the edit.
+            notice = notices.notify_card_agent(self.store, ref, notices.edit_changes(before, card))
+            if notice is not None and notice["status"] == "failed":
+                message = f"Could not tell agent {notice['agent']}: {notice['error']}"
+                self.call_from_thread(self.notify, message, severity="warning")
+            return card
 
         self._start_write(edit, add=screen, refs={ref})
 
