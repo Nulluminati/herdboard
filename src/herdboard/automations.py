@@ -349,9 +349,10 @@ def _check(
     check_board: bool = True,
     check_type: bool = True,
     check_thinking: bool = True,
+    check_schedule: bool = True,
 ) -> Automation:
     """Check every field before a write. Returns the automation with the type's configured name.
-    A change that keeps the saved preset, board, type or thinking level passes False for it, so one
+    A change that keeps the saved preset, board, type, thinking level or schedule passes False for it, so one
     that went bad after the save does not block a pause or an unrelated edit."""
     config = store.config
     title = " ".join(item.title.split())
@@ -388,7 +389,8 @@ def _check(
                 f"Board {item.board} has no repository. Use a repository board, or inbox for a run without one.",
                 "usage",
             )
-    parse_schedule(item.schedule)
+    if check_schedule:
+        parse_schedule(item.schedule)
     if item.agent is not None and item.agent not in AGENTS:
         raise AutomationError("The agent must be claude, pi or codex")
     agent = item.agent or config.start_agent
@@ -477,6 +479,7 @@ def _change(store, automation_id: str, change, saved=None) -> tuple[Automation, 
                     check_type=changed.type != item.type,
                     # The levels depend on the agent, so a change of the agent checks the level too.
                     check_thinking=(changed.thinking, changed.agent) != (item.thinking, item.agent),
+                    check_schedule=changed.schedule != item.schedule,
                 )
                 current[index] = changed
                 save(store.config, current)

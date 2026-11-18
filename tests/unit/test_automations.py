@@ -8,6 +8,7 @@ import tempfile
 import time
 import tomllib
 import unittest
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -289,6 +290,17 @@ class StorageTests(AutomationTestCase):
         with self.assertRaisesRegex(HerdboardError, "Unknown type 'chore'"):
             automations.edit(self.store, saved.id, type="chore")
         self.assertEqual(automations.edit(self.store, saved.id, type="Feature").type, "feature")
+
+    def test_a_broken_saved_schedule_does_not_block_pause_or_unrelated_edits(self):
+        saved = self.add()
+        automations.save(self.config, [replace(saved, schedule="every 2 fortnights")])
+        self.assertFalse(automations.set_enabled(self.store, saved.id, False).enabled)
+        self.assertTrue(automations.set_enabled(self.store, saved.id, True).enabled)
+        edited = automations.edit(self.store, saved.id, title="New title")
+        self.assertEqual((edited.title, edited.schedule), ("New title", "every 2 fortnights"))
+        with self.assertRaisesRegex(HerdboardError, "Unknown schedule 'every 3 fortnights'"):
+            automations.edit(self.store, saved.id, schedule="every 3 fortnights")
+        self.assertEqual(automations.edit(self.store, saved.id, schedule="every day").schedule, "every day")
 
     def test_claude_takes_its_own_thinking_levels(self):
         added = self.add(agent="claude", thinking="max")
