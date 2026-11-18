@@ -255,12 +255,14 @@ class TabBarTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_the_current_tab_has_an_accent_border_and_all_keep_their_size(self):
         tabs = ("board", "prs", "notes", "automations")
-        for theme in ("textual-dark", "ansi-dark"):
-            app = self.app()
-            app.theme = theme
-            async with app.run_test(size=(160, 30)) as pilot:
-                await pilot.press("G")
+        app = self.app()
+        async with app.run_test(size=(160, 30)) as pilot:
+            await pilot.press("G")
+            # Each theme starts on the Pull requests tab: the cycle below ends where it starts.
+            for theme in ("textual-dark", "ansi-dark"):
+                app.theme = theme
                 await self.settle(app, pilot)
+                self.assertEqual(self.bar(app).active, "prs")
                 sizes = {tab: app.screen.query_one(f"#tab-{tab}").region.size for tab in tabs}
                 for active_tab in ("notes", "automations", "board", "prs"):
                     await pilot.press("G")
@@ -451,11 +453,14 @@ class TabBarTests(unittest.IsolatedAsyncioTestCase):
                 for n in range(count, 0, -1)
             ]
             self.service.page.return_value = ("acme/api", Page(prs, count, None))
-            for width in (80, 160):
-                app = self.app()
-                async with app.run_test(size=(width, 30)) as pilot:
-                    await pilot.press("G")
+            app = self.app()
+            async with app.run_test(size=(80, 30)) as pilot:
+                await pilot.press("G")
+                await self.settle(app, pilot)
+                for width in (80, 160):
+                    await pilot.resize_terminal(width, 30)
                     await self.settle(app, pilot)
+                    self.assertEqual(app.screen.size.width, width)
                     listing = app.screen.query_one("#pr-list")
                     row = app.screen.query(PullRequestRow).first()
                     self.assertEqual(listing.virtual_size.width, listing.scrollable_content_region.width)

@@ -4,6 +4,7 @@ import asyncio
 import os
 import tempfile
 import unittest
+from itertools import pairwise, product
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -85,18 +86,20 @@ class TabTests(AutomationsBoardTestCase):
             self.assertEqual(seen, ["board", "prs", "notes", "automations", "board"])
 
     async def test_a_click_on_each_tab_goes_there_from_each_tab(self):
+        # Each tab follows each tab once in this walk, so one click per step covers every ordered pair.
+        walk = ["board", "automations", "automations", "notes", "automations", "prs", "automations", "board", "notes"]
+        walk += ["notes", "prs", "notes", "board", "prs", "prs", "board", "board"]
+        tabs = ("board", "prs", "notes", "automations")
+        self.assertEqual(set(pairwise(walk)), set(product(tabs, repeat=2)))
         app = self.app()
         async with app.run_test(size=(160, 30)) as pilot:
             await self.settle(app, pilot)
-            for source in ("board", "prs", "notes", "automations"):
-                for target in ("board", "prs", "notes", "automations"):
-                    app.show_tab(source)
-                    await self.settle(app, pilot)
-                    self.assertEqual(self.tab(app), source)
-                    await pilot.click(f"#tab-{target}")
-                    await self.settle(app, pilot)
-                    self.assertEqual(self.tab(app), target, f"{source} -> {target}")
-                    self.assertLessEqual(len(app.screen_stack), 2)
+            self.assertEqual(self.tab(app), walk[0])
+            for source, target in pairwise(walk):
+                await pilot.click(f"#tab-{target}")
+                await self.settle(app, pilot)
+                self.assertEqual(self.tab(app), target, f"{source} -> {target}")
+                self.assertLessEqual(len(app.screen_stack), 2)
 
     async def test_the_tab_is_the_last_one(self):
         app = self.app()
