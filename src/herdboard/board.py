@@ -46,7 +46,18 @@ from textual.widgets import (
 )
 from textual.worker import Worker, WorkerState
 
-from . import activity, agent_states, attachments, automations, factory, notes, pr_reviews, updates, verification
+from . import (
+    activity,
+    agent_states,
+    attachments,
+    automations,
+    factory,
+    git_changes,
+    notes,
+    pr_reviews,
+    updates,
+    verification,
+)
 from . import merge as merge_module
 from . import start as start_module
 from .agent_review import AgentReviewer
@@ -797,6 +808,8 @@ def card_face(
         add(Text(icon_label("pr", f"PR {card.pr_state}", icon_style), style=PR_STYLES.get(card.pr_state, "dim")))
     if card.worktree_left:
         add(Text(icon_label("branch", "worktree still exists", icon_style), style="bold yellow"))
+    if card.changes is not None:
+        add(changes_item(card.changes))
     if card.agent_review:
         add(
             phase_item("reviewing", icon_style, "bold", card.agent_review, card.review_status, agent_logos),
@@ -1271,6 +1284,11 @@ class DetailScreen(ModalBase):
             rows.append(("Worktree", icon_label("branch", "removed", self.icon_style)))
         elif card.worktree_left:
             rows.append(("Worktree", icon_label("branch", "still exists", self.icon_style)))
+        if card.changes is not None:
+            changes = changes_item(card.changes)
+            if card.changes.files:
+                changes.append(f" · {card.changes.files} file{'' if card.changes.files == 1 else 's'}", style="dim")
+            rows.append(("Changes", changes))
         style = self.icon_style
         if card.agent_status:
             agent = agent_glyph(card.agent_status)
@@ -3353,6 +3371,17 @@ def pr_size_cell(pr: pr_reviews.PullRequest) -> Text:
     text.append(f"+{pr.additions}", style="green")
     text.append(" ")
     text.append(f"−{pr.deletions}", style="red")
+    return text
+
+
+def changes_item(changes: git_changes.Changes) -> Text:
+    """The lines that a card's worktree changes: `+12 −3` in green and red, or a dim `no changes`."""
+    if not (changes.added or changes.removed or changes.files):
+        return Text("no changes", style="dim")
+    text = Text()
+    text.append(f"+{changes.added}", style="green")
+    text.append(" ")
+    text.append(f"−{changes.removed}", style="red")
     return text
 
 
@@ -5813,6 +5842,7 @@ class HerdboardApp(App):
         mark_planning([card for data in ordered for card in data.cards])
         attachments.mark(self.store.config, [card for data in ordered for card in data.cards])
         agent_states.mark([card for data in ordered for card in data.cards])
+        git_changes.mark([card for data in ordered for card in data.cards])
         return ordered
 
     def current_card(self) -> CardView | None:
@@ -6060,6 +6090,7 @@ class HerdboardApp(App):
                     card.planning_status,
                     card.review_status,
                     card.pr_write_status,
+                    card.changes,
                 )
                 for card in cards
             ]
@@ -6071,6 +6102,7 @@ class HerdboardApp(App):
             await asyncio.to_thread(mark_planning, cards)
             await asyncio.to_thread(attachments.mark, self.store.config, cards)
             await asyncio.to_thread(agent_states.mark, cards)
+            await asyncio.to_thread(git_changes.mark, cards)
         except HerdboardError as error:
             self.notify(str(error), severity="error")
             return

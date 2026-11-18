@@ -9,6 +9,7 @@ from rich.console import Console
 
 from herdboard import board
 from herdboard.board import ColumnData
+from herdboard.git_changes import Changes
 from herdboard.store import CardView
 
 
@@ -221,6 +222,42 @@ def status_row(item, done=False, **options):
 def mark_row(item, done=False, **options):
     """The planning and review markers, which follow the state icon in the first row."""
     return " · ".join(mark.plain for mark in board.card_face(item, False, done=done, **options).marks)
+
+
+class ChangesItemTests(unittest.TestCase):
+    def test_the_status_row_shows_added_lines_green_and_removed_lines_red(self):
+        item = card(worktree=True, pr_state="open", changes=Changes(12, 3, 4))
+        face = board.card_face(item, False)
+        self.assertEqual(face.status.plain, "PR open · +12 −3")
+        spans = {face.status.plain[span.start : span.end]: str(span.style) for span in face.status.spans}
+        self.assertEqual((spans["+12"], spans["−3"]), ("green", "red"))
+        self.assertEqual(face.words.plain, "PR open · +12 −3")
+
+    def test_an_empty_diff_shows_no_changes_dim(self):
+        face = board.card_face(card(worktree=True, changes=Changes(0, 0, 0)), False)
+        self.assertEqual(face.status.plain, "no changes")
+        self.assertEqual(str(face.status.spans[0].style), "dim")
+        self.assertEqual(face.words.plain, "no changes")
+
+    def test_a_card_without_changes_shows_no_change_item(self):
+        self.assertEqual(status_row(card(worktree=True)), "")
+
+
+class DetailChangesRowTests(unittest.TestCase):
+    def meta(self, item):
+        return board.DetailScreen(item)._meta().plain.splitlines()
+
+    def test_the_detail_view_shows_the_line_and_file_counts(self):
+        self.assertIn("Changes      +12 −3 · 4 files", self.meta(card(worktree=True, changes=Changes(12, 3, 4))))
+
+    def test_one_changed_file_is_one_file(self):
+        self.assertIn("Changes      +1 −0 · 1 file", self.meta(card(worktree=True, changes=Changes(1, 0, 1))))
+
+    def test_an_empty_diff_shows_no_changes(self):
+        self.assertIn("Changes      no changes", self.meta(card(worktree=True, changes=Changes(0, 0, 0))))
+
+    def test_a_card_without_changes_has_no_changes_row(self):
+        self.assertFalse([row for row in self.meta(card(worktree=True)) if row.startswith("Changes")])
 
 
 class AgentGlyphTests(unittest.TestCase):
