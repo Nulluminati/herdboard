@@ -589,6 +589,18 @@ class NoticeTests(CliTestCase):
         self.assertIn(f"Told agent hb-{self.ref}.", out)
         self.assertIn("herdboard: warning: The agent has the prompt, but the log entry failed: log.md: disk full", err)
 
+    def test_notice_edit_with_an_unknown_parent_changes_nothing(self):
+        data = self.run_json("edit", self.ref, "--body", "new", "--parent", "t999", expect=1)
+        self.assertEqual(data["error"]["code"], "not_found")
+        self.assertEqual(self.run_json("show", self.ref)["card"]["body"], ["old"])
+        self.assertEqual(self.prompts(), [])
+
+    def test_notice_edit_with_a_refused_parent_still_tells_the_agent(self):
+        data = self.run_json("edit", self.ref, "--body", "new", "--parent", self.ref, expect=1)
+        self.assertEqual(data["error"]["code"], "usage")
+        self.assertEqual(self.run_json("show", self.ref)["card"]["body"], ["new"])
+        self.assertEqual(len(self.prompts()), 1)
+
     def test_notice_edit_with_a_linear_parent_changes_nothing(self):
         data = self.run_json("edit", self.ref, "--body", "new", "--parent", "ENG-1", expect=1)
         self.assertEqual(data["error"]["code"], "usage")

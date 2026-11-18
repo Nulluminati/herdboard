@@ -400,9 +400,7 @@ class NavigationTests(BoardTestCase):
             async with app.run_test(size=SIZE) as pilot:
                 await self.edit_in_dialog(app, pilot, body="new detail")
                 warnings = [n.message for n in app._notifications if n.severity == "warning"]
-        self.assertIn(
-            f"Told agent hb-{ref}. The agent has the prompt, but the log entry failed: log.md: disk full", warnings
-        )
+        self.assertIn(f"hb-{ref}: The agent has the prompt, but the log entry failed: log.md: disk full", warnings)
 
     async def test_tab_moves_between_title_and_details(self):
         app = self.make_app()

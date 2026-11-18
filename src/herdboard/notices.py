@@ -42,16 +42,18 @@ def notify_card_agent(store, ref: str, changes: list[str], skip: bool = False) -
         "reason": None,
         "error": None,
     }
+    reason = "no_notify" if skip else "self" if os.environ.get("HERDR_PANE_ID") == record["pane_id"] else None
     try:
         live = start.agent_live(record)
     except HerdboardError as error:
+        # A caller that sends no notice gets no warning about a Herdr that does not answer.
+        if reason is not None:
+            return {**notice, "status": "skipped", "reason": reason}
         return {**notice, "status": "failed", "error": str(error)}
     if not live:
         return None
-    if skip:
-        return {**notice, "status": "skipped", "reason": "no_notify"}
-    if os.environ.get("HERDR_PANE_ID") == record["pane_id"]:
-        return {**notice, "status": "skipped", "reason": "self"}
+    if reason is not None:
+        return {**notice, "status": "skipped", "reason": reason}
     labels = ", ".join(changes)
     text = f"Card {ref} changed: {labels}. Run `herdboard --json show {ref}` and read the changes before you go on."
     try:

@@ -6493,7 +6493,7 @@ class HerdboardApp(App):
                 if notice["status"] == "failed":
                     message = f"Could not tell agent {notice['agent']}: {notice['error']}"
                 else:
-                    message = f"Told agent {notice['agent']}. {notice['error']}"
+                    message = f"{notice['agent']}: {notice['error']}"
                 self.call_from_thread(self.notify, message, severity="warning")
             return card
 

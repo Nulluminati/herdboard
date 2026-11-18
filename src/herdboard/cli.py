@@ -1070,16 +1070,17 @@ def _cmd_edit(ctx: _Context) -> dict:
         fields["type"] = kind
     if args.due is not None or args.no_due:
         fields["due"] = args.due
+    # Before any write, so an unknown parent changes nothing.
+    parent = ctx.store.show(args.parent).ref if args.parent is not None else None
     card = None
-    changes: list[str] = []
+    notice = None
     if args.title is not None or lines is not None or fields:
         before = ctx.store.show(args.ref)
         card = ctx.store.edit(args.ref, title=args.title, body=lines, **fields)
-        changes = notices.edit_changes(before, card)
+        # Before the parent step, so the agent learns of the saved change even when the parent is refused.
+        notice = notices.notify_card_agent(ctx.store, card.ref, notices.edit_changes(before, card), skip=args.no_notify)
     if args.parent is not None or args.no_parent:
-        parent = ctx.store.show(args.parent).ref if args.parent is not None else None
         card = ctx.store.set_parent(card.ref if card else args.ref, parent)
-    notice = notices.notify_card_agent(ctx.store, card.ref, changes, skip=args.no_notify)
     return {"card": card, "edited": True, "notice": notice}
 
 

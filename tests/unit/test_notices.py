@@ -109,6 +109,19 @@ class NoticeTests(unittest.TestCase):
         self.assertIn("test failure", notice["error"])
         self.assertEqual(self.log(), [])
 
+    def test_skip_wins_over_a_failed_liveness_check(self):
+        self.record()
+        self.fake.fail = "agent get"
+        notice = notices.notify_card_agent(self.store, self.card.ref, ["details"], skip=True)
+        self.assertEqual((notice["status"], notice["reason"], notice["error"]), ("skipped", "no_notify", None))
+
+    def test_own_pane_wins_over_a_failed_liveness_check(self):
+        self.record()
+        self.fake.fail = "agent get"
+        with patch.dict(os.environ, {"HERDR_PANE_ID": "w9:p1"}):
+            notice = notices.notify_card_agent(self.store, self.card.ref, ["details"])
+        self.assertEqual((notice["status"], notice["reason"], notice["error"]), ("skipped", "self", None))
+
     def test_failed_liveness_check_reports_the_error(self):
         self.record()
         self.fake.fail = "agent get"
