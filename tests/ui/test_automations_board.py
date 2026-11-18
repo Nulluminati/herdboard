@@ -101,6 +101,18 @@ class TabTests(AutomationsBoardTestCase):
                 self.assertEqual(self.tab(app), target, f"{source} -> {target}")
                 self.assertLessEqual(len(app.screen_stack), 2)
 
+    async def test_showing_the_current_tab_keeps_the_screen_stack(self):
+        app = self.app()
+        async with app.run_test(size=(160, 30)) as pilot:
+            await self.settle(app, pilot)
+            for tab in ("board", "prs", "notes", "automations"):
+                app.show_tab(tab)
+                await self.settle(app, pilot)
+                stack = list(app.screen_stack)
+                app.show_tab(tab)
+                await self.settle(app, pilot)
+                self.assertEqual(app.screen_stack, stack, tab)
+
     async def test_the_tab_is_the_last_one(self):
         app = self.app()
         async with app.run_test(size=(160, 30)) as pilot:
