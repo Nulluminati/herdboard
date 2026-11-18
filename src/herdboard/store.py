@@ -25,6 +25,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from . import card_file
 from .card_file import BoardFile, CardFile, ColumnFile
@@ -47,6 +48,9 @@ from .model import (
     ParentError,
     is_triage,
 )
+
+if TYPE_CHECKING:
+    from .git_changes import Changes
 
 ID_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz"
 # A todo ID: `t` and three base-36 characters. A card folder's name is its ID.
@@ -109,6 +113,8 @@ class CardView:
     has_attachments: bool = False
     # Board-only: True when the card has a plan attachment.
     planned: bool = False
+    # Board-only: the lines that the card's worktree adds and removes since its base, while the worktree exists.
+    changes: Changes | None = None
     # Board-only: "reviewed" while the branch HEAD is the commit of the last agent review, "new commits" after it.
     reviewed: str | None = None
     # Board-only Herdr status (working, blocked, done, idle, unknown) of each live agent pane on the card:

@@ -1,0 +1,170 @@
+"""Git changes: the lines that a card's worktree adds and removes since its branch left the base."""
+
+import json
+import os
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from herdboard import git_changes
+from herdboard.git_changes import Changes
+from herdboard.store import CardView
+from support.git_env import isolated
+
+
+def card(ref, worktree=True, repoless=False):
+    return CardView(
+        ref=ref,
+        board="api",
+        path=None,
+        column="In progress",
+        title="Ship it",
+        checked=False,
+        due=None,
+        tags=[],
+        body=[],
+        worktree=worktree,
+        repoless=repoless,
+    )
+
+
+class WorktreeCase(unittest.TestCase):
+    """A repository with a `main` branch and a worktree of the branch `feat/x` made from it."""
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        self.enterContext(patch.dict(os.environ, isolated()))
+        self.repo = self.root / "repo"
+        self.repo.mkdir()
+        self.git(self.repo, "init", "-q", "-b", "main")
+        (self.repo / "app.py").write_text("one\ntwo\nthree\n")
+        self.git(self.repo, "add", ".")
+        self.git(self.repo, "commit", "-q", "-m", "init")
+        self.worktree = self.root / "work"
+        self.git(self.repo, "worktree", "add", "-q", "-b", "feat/x", str(self.worktree), "main")
+
+    def git(self, directory, *args):
+        subprocess.run(["git", "-C", str(directory), *args], check=True, capture_output=True)
+
+    def commit(self, message="change"):
+        self.git(self.worktree, "add", ".")
+        self.git(self.worktree, "commit", "-q", "-m", message)
+
+
+class GitChangesTests(WorktreeCase):
+    def test_a_commit_counts_its_added_and_removed_lines(self):
+        (self.worktree / "app.py").write_text("one\nthree\nfour\nfive\nsix\n")
+        self.commit()
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(3, 1, 1))
+
+    def test_an_uncommitted_edit_to_a_tracked_file_counts(self):
+        (self.worktree / "app.py").write_text("one\ntwo\nthree\nfour\n")
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(1, 0, 1))
+
+    def test_commits_and_uncommitted_edits_add_up(self):
+        (self.worktree / "app.py").write_text("one\ntwo\nthree\nfour\n")
+        self.commit()
+        (self.worktree / "app.py").write_text("one\ntwo\nthree\nfour\nfive\n")
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(2, 0, 1))
+
+    def test_an_untracked_text_file_adds_its_lines_and_one_file(self):
+        (self.worktree / "notes.md").write_text("a\nb\nc\nd\ne\n")
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(5, 0, 1))
+
+    def test_an_untracked_file_without_a_final_newline_counts_its_last_line(self):
+        (self.worktree / "notes.md").write_text("a\nb")
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(2, 0, 1))
+
+    def test_an_ignored_file_does_not_count(self):
+        (self.worktree / ".gitignore").write_text("*.log\n")
+        self.commit()
+        (self.worktree / "run.log").write_text("x\ny\n")
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(1, 0, 1))
+
+    def test_an_untracked_binary_file_does_not_count(self):
+        (self.worktree / "image.bin").write_bytes(b"\x89PNG\x00\x01\n\n\n")
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(0, 0, 0))
+
+    def test_an_untracked_file_over_one_megabyte_does_not_count(self):
+        (self.worktree / "big.txt").write_text("line\n" * 300_000)
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(0, 0, 0))
+
+    def test_a_worktree_with_no_changes_gives_zero_counts(self):
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(0, 0, 0))
+
+    def test_a_record_with_no_base_uses_the_branch_upstream(self):
+        self.git(self.worktree, "branch", "--set-upstream-to", "main", "feat/x")
+        (self.worktree / "app.py").write_text("one\ntwo\nthree\nfour\n")
+        self.commit()
+        self.assertEqual(git_changes.worktree_changes(self.worktree, None, "feat/x"), Changes(1, 0, 1))
+
+    def test_no_base_and_no_upstream_gives_none(self):
+        self.assertIsNone(git_changes.worktree_changes(self.worktree, None, "feat/x"))
+
+    def test_an_unknown_base_gives_none(self):
+        self.assertIsNone(git_changes.worktree_changes(self.worktree, "nope", "feat/x"))
+
+    def test_a_folder_that_is_not_a_git_repository_gives_none(self):
+        folder = self.root / "plain"
+        folder.mkdir()
+        self.assertIsNone(git_changes.worktree_changes(folder, "main", "feat/x"))
+
+
+class MarkTests(WorktreeCase):
+    def setUp(self):
+        super().setUp()
+        self.state = self.root / "state" / "herdboard"
+        self.state.mkdir(parents=True)
+        self.enterContext(patch.dict(os.environ, {"XDG_STATE_HOME": str(self.root / "state")}))
+
+    def write(self, records):
+        (self.state / "starts.json").write_text(json.dumps(records))
+
+    def record(self, **extra):
+        return {"ref": "t123", "worktree_path": str(self.worktree), "base": "main", "branch": "feat/x", **extra}
+
+    def test_mark_sets_the_changes_of_a_card_with_a_worktree(self):
+        self.write({"t123": self.record()})
+        (self.worktree / "app.py").write_text("one\ntwo\nthree\nfour\n")
+        item = card("t123")
+        git_changes.mark([item])
+        self.assertEqual(item.changes, Changes(1, 0, 1))
+
+    def test_a_record_found_by_its_ref_field_counts(self):
+        self.write({"api/t123": self.record()})
+        item = card("t123")
+        git_changes.mark([item])
+        self.assertEqual(item.changes, Changes(0, 0, 0))
+
+    def test_mark_sets_none_for_a_card_with_no_worktree(self):
+        self.write({"t123": self.record()})
+        item = card("t123", worktree=False)
+        item.changes = Changes(1, 1, 1)
+        git_changes.mark([item])
+        self.assertIsNone(item.changes)
+
+    def test_mark_sets_none_for_a_repoless_card(self):
+        self.write({"t123": self.record(mode="repoless")})
+        item = card("t123", repoless=True)
+        git_changes.mark([item])
+        self.assertIsNone(item.changes)
+
+    def test_mark_sets_none_for_a_card_with_no_record(self):
+        self.write({})
+        item = card("t123")
+        git_changes.mark([item])
+        self.assertIsNone(item.changes)
+
+    def test_an_unreadable_state_file_sets_none(self):
+        (self.state / "starts.json").write_text("not json")
+        item = card("t123")
+        git_changes.mark([item])
+        self.assertIsNone(item.changes)
+
+
+if __name__ == "__main__":
+    unittest.main()
