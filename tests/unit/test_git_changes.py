@@ -85,6 +85,16 @@ class GitChangesTests(WorktreeCase):
         (self.worktree / "run.log").write_text("x\ny\n")
         self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(1, 0, 1))
 
+    def test_an_untracked_file_whose_name_is_not_utf8_counts(self):
+        (self.worktree / os.fsdecode(b"bad-\xff.txt")).write_text("x\n")
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(1, 0, 1))
+
+    def test_a_git_command_that_hangs_gives_none(self):
+        hung = subprocess.TimeoutExpired(["git"], git_changes.GIT_TIMEOUT)
+        with patch.object(git_changes.subprocess, "run", side_effect=hung) as run:
+            self.assertIsNone(git_changes.worktree_changes(self.worktree, "main", "feat/x"))
+        self.assertEqual(run.call_args.kwargs["timeout"], git_changes.GIT_TIMEOUT)
+
     def test_an_untracked_binary_file_does_not_count(self):
         (self.worktree / "image.bin").write_bytes(b"\x89PNG\x00\x01\n\n\n")
         self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(0, 0, 0))

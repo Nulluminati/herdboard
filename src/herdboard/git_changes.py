@@ -20,6 +20,8 @@ MAX_UNTRACKED_BYTES = 1024 * 1024
 BINARY_PROBE = 8000
 # Starting git costs more than its work, so the worktrees count at the same time.
 MAX_WORKERS = 8
+# The board counts every two seconds, so a hung git command must not hold up the status check.
+GIT_TIMEOUT = 5
 
 
 @dataclass(frozen=True)
@@ -31,8 +33,16 @@ class Changes:
 
 def _git(directory: Path, *args: str) -> str | None:
     try:
-        result = subprocess.run(["git", "-C", str(directory), *args], capture_output=True, text=True)
-    except OSError:
+        # Git prints file names as raw bytes. surrogateescape keeps a name that is not UTF-8,
+        # so the path still opens the same file.
+        result = subprocess.run(
+            ["git", "-C", str(directory), *args],
+            capture_output=True,
+            encoding="utf-8",
+            errors="surrogateescape",
+            timeout=GIT_TIMEOUT,
+        )
+    except (OSError, subprocess.TimeoutExpired):
         return None
     return result.stdout if result.returncode == 0 else None
 
