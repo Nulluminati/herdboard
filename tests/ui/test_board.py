@@ -390,6 +390,20 @@ class NavigationTests(BoardTestCase):
             warnings = [n.message for n in app._notifications if n.severity == "warning"]
             self.assertTrue(any(message.startswith(f"Could not tell agent hb-{ref}:") for message in warnings))
 
+    async def test_notice_sent_without_its_log_entry_warns(self):
+        from herdboard import activity
+
+        ref = self.refs(self.repo_path)["a1"][0]
+        self.started_with_agent(ref)
+        app = self.make_app()
+        with mock.patch.object(activity, "append", side_effect=IoError("log.md: disk full")):
+            async with app.run_test(size=SIZE) as pilot:
+                await self.edit_in_dialog(app, pilot, body="new detail")
+                warnings = [n.message for n in app._notifications if n.severity == "warning"]
+        self.assertIn(
+            f"Told agent hb-{ref}. The agent has the prompt, but the log entry failed: log.md: disk full", warnings
+        )
+
     async def test_tab_moves_between_title_and_details(self):
         app = self.make_app()
         async with app.run_test(size=SIZE) as pilot:

@@ -11,7 +11,7 @@
 | `herdboard move <id> --up\|--down` | Move a todo up or down in its column |
 | `herdboard move <id> [column] --board NAME` | Move a todo, with its card folder, to another board. A started card cannot move |
 | `herdboard done <id> [--state]` | Move a card to its board's done column |
-| `herdboard edit <id> [--title] [--body \| --body-file] [--tag NAME... \| --no-tags] [--due YYYY-MM-DD \| --no-due] [--parent ID \| --no-parent] [--type NAME \| --no-type] [--no-notify]` | Change a todo's title, details, tags, due date, parent or type. `--tag` replaces the tags. `--body ""` removes the details. A new title or new details go to the card's running agent as a prompt; `--no-notify` sends none |
+| `herdboard edit <id> [--title] [--body \| --body-file] [--tag NAME... \| --no-tags] [--due YYYY-MM-DD \| --no-due] [--parent ID \| --no-parent] [--type NAME \| --no-type] [--no-notify]` | Change a todo's title, details, tags, due date, parent or type. `--tag` replaces the tags. `--body ""` removes the details. A change of the title or details sends the card's running agent a prompt to read the card again; `--no-notify` sends none |
 | `herdboard log <id> "text"` | Add an entry to the card's activity log |
 | `herdboard attach <id> FILE [--name NAME] [--no-notify]` / `attach <id> --remove NAME [--no-notify]` | Add a file to the card's attachments, or remove one. The card's running agent gets a prompt about the change; `--no-notify` sends none |
 | `herdboard mockup <id> PROMPT... [--image FILE]... [--quality Q] [--no-show]` | Make UI mockup drafts with Codex, one per prompt (four at most), and show them in a pane |

@@ -6489,8 +6489,11 @@ class HerdboardApp(App):
             )
             # Still in the worker thread: the notice calls Herdr. Its failure keeps the edit.
             notice = notices.notify_card_agent(self.store, ref, notices.edit_changes(before, card))
-            if notice is not None and notice["status"] == "failed":
-                message = f"Could not tell agent {notice['agent']}: {notice['error']}"
+            if notice is not None and notice["error"]:
+                if notice["status"] == "failed":
+                    message = f"Could not tell agent {notice['agent']}: {notice['error']}"
+                else:
+                    message = f"Told agent {notice['agent']}. {notice['error']}"
                 self.call_from_thread(self.notify, message, severity="warning")
             return card
 

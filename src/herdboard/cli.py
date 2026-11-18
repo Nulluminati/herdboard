@@ -1052,6 +1052,8 @@ def _cmd_edit(ctx: _Context) -> dict:
             "Nothing to change: give --title, --body, --body-file, --tag, --no-tags, --due, --no-due, "
             "--parent, --no-parent, --type or --no-type"
         )
+    if args.parent is not None and LINEAR_REF.match(args.parent):
+        raise UsageError("A Linear issue's sub-issues are set in Linear; --parent takes a todo")
     kind = ctx.config.type_named(args.type) if args.type is not None else None
     # A guard against mistakes, not a security boundary: the card text is the user's.
     pane = os.environ.get("HERDR_PANE_ID")
@@ -1075,8 +1077,6 @@ def _cmd_edit(ctx: _Context) -> dict:
         card = ctx.store.edit(args.ref, title=args.title, body=lines, **fields)
         changes = notices.edit_changes(before, card)
     if args.parent is not None or args.no_parent:
-        if args.parent is not None and LINEAR_REF.match(args.parent):
-            raise UsageError("A Linear issue's sub-issues are set in Linear; --parent takes a todo")
         parent = ctx.store.show(args.parent).ref if args.parent is not None else None
         card = ctx.store.set_parent(card.ref if card else args.ref, parent)
     notice = notices.notify_card_agent(ctx.store, card.ref, changes, skip=args.no_notify)
@@ -2041,11 +2041,13 @@ def _linear_warnings(result: LinearResult) -> None:
 
 
 def _render_notice(notice: dict | None) -> None:
-    """The text lines of a notice to the card's agent: one when it went out, a warning when it failed."""
+    """The text lines of a notice to the card's agent: one when it went out, a warning for its error."""
     if notice is None:
         return
     if notice["status"] == "sent":
         print(f"Told agent {notice['agent']}.")
+        if notice["error"]:
+            print(f"herdboard: warning: {notice['error']}", file=sys.stderr)
     elif notice["status"] == "failed":
         print(f"herdboard: warning: Could not tell agent {notice['agent']}: {notice['error']}", file=sys.stderr)
 

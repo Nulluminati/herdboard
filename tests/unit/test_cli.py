@@ -7,8 +7,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from herdboard import cli, start
-from herdboard.model import ConflictError
+from herdboard import activity, cli, start
+from herdboard.model import ConflictError, IoError
 from herdboard.store import Store
 from support.git_env import isolated
 from support.herdboard_cli import CliTestCase, git
@@ -582,6 +582,18 @@ class NoticeTests(CliTestCase):
         self.fake.agent = False
         data = self.run_json("edit", self.ref, "--body", "new")
         self.assertIsNone(data["notice"])
+
+    def test_notice_sent_without_its_log_entry_warns_in_text_output(self):
+        with mock.patch.object(activity, "append", side_effect=IoError("log.md: disk full")):
+            out, err = self.run_cli("edit", self.ref, "--body", "new")
+        self.assertIn(f"Told agent hb-{self.ref}.", out)
+        self.assertIn("herdboard: warning: The agent has the prompt, but the log entry failed: log.md: disk full", err)
+
+    def test_notice_edit_with_a_linear_parent_changes_nothing(self):
+        data = self.run_json("edit", self.ref, "--body", "new", "--parent", "ENG-1", expect=1)
+        self.assertEqual(data["error"]["code"], "usage")
+        self.assertEqual(self.run_json("show", self.ref)["card"]["body"], ["old"])
+        self.assertEqual(self.prompts(), [])
 
 
 class RepositoryTests(CliTestCase):

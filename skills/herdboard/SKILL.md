@@ -83,7 +83,7 @@ The activity log is the card's history. It works for todos and Linear issues, an
 
 Attachments hold documents too large for the card text. `show` lists them in `attachments`. The attachment `plan.md` is the card's plan: the agent that starts work on the card gets it in its brief.
 
-When `edit` changes the title or details of a started card, or `attach` adds or removes an attachment, herdboard prompts the card's live agent about it. The result's `notice` says what happened: `null` when the card has no live agent or nothing changed, else `status` `sent`, `skipped` (`reason` `no_notify` for `--no-notify`, `self` from the agent's own pane) or `failed` (with `error`; the change stays saved).
+When `edit` changes the title or details of a started card, or `attach` adds or removes an attachment, herdboard prompts the card's live agent about it. The result's `notice` says what happened: `null` when the card has no live agent or nothing changed, else `status` `sent`, `skipped` (`reason` `no_notify` for `--no-notify`, `self` from the agent's own pane) or `failed` (with `error`; the change stays saved). A `sent` notice can also have an `error`: the agent has the prompt, but the log entry failed.
 
 `mockup` asks Codex for a UI mockup image of each prompt and shows the drafts in a pane next to yours. A draft is not an attachment: it stays in herdboard's state folder until `finish` or `archive`. Attach only a draft that the user approves, with a name `mockup-<slug>.png`. The work agent's brief points to these files. `--image FILE` revises a draft or follows a screenshot. Give the call a timeout of 10 minutes.
 
