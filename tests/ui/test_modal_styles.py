@@ -79,8 +79,7 @@ class ModalStyleTests(BoardTestCase):
                         self.assertIn("Keep this explanation.", str(screen.query_one("Label.dim").render()))
                     if isinstance(screen, EditScreen):
                         self.assertIsInstance(app.focused, Input)
-                    app.pop_screen()
-                    await pilot.pause()
+                    await app.pop_screen()
 
     def modal_examples(self, app):
         card = self.store.add(self.repo_path, "A card", "Todo")
@@ -150,8 +149,7 @@ class ModalStyleTests(BoardTestCase):
             async with app.run_test(size=(120, 40)) as pilot:
                 for screen in screens:
                     with self.subTest(screen=type(screen).__name__):
-                        app.push_screen(screen)
-                        await pilot.pause()
+                        await app.push_screen(screen)
                         await app.workers.wait_for_complete()
                         await pilot.pause()
                         subtitle = screen.query_one(".dialog").border_subtitle
@@ -169,8 +167,7 @@ class ModalStyleTests(BoardTestCase):
                             self.assertEqual(subtitle, f"enter: {action} · esc: cancel")
                         if isinstance(screen, AutomationDetailScreen):
                             self.assertEqual("o: open" in subtitle, bool(screen.files))
-                        app.pop_screen()
-                        await pilot.pause()
+                        await app.pop_screen()
 
     async def test_card_and_pull_request_shortcuts_fit_at_80_columns(self):
         card = self.store.add(self.repo_path, "A card", "Todo", body=["- [ ] Check"])
@@ -189,29 +186,28 @@ class ModalStyleTests(BoardTestCase):
                     self.assertLessEqual(cell_len(dialog.border_subtitle), dialog.size.width - 4)
                     rendered = "\n".join(strip.text for strip in screen._compositor.render_strips())
                     self.assertIn("esc: close", rendered)
-                    app.pop_screen()
-                    await pilot.pause()
+                    await app.pop_screen()
 
     async def test_selection_menus_keep_their_native_border(self):
         app = self.make_app()
         card = self.store.add(self.repo_path, "A card", "Todo")
         async with app.run_test(size=(100, 40)) as pilot:
-            for theme in ("textual-dark", "ansi-dark", "ansi-light"):
-                app.theme = theme
-                for selector in ("#card-type", "#config-theme"):
+            for selector in ("#card-type", "#config-theme"):
+                if selector == "#card-type":
+                    screen = EditScreen(card, types=["bug", "chore"])
+                else:
+                    screen = ConfigScreen(
+                        self.repo_path,
+                        self.store.board_meta(self.repo_path),
+                        False,
+                        {key: getattr(self.config, key) for key in ConfigScreen.GLOBAL_KEYS},
+                        sorted(app.available_themes),
+                        (None, []),
+                    )
+                await app.push_screen(screen)
+                for theme in ("textual-dark", "ansi-dark", "ansi-light"):
                     with self.subTest(theme=theme, selector=selector):
-                        if selector == "#card-type":
-                            screen = EditScreen(card, types=["bug", "chore"])
-                        else:
-                            screen = ConfigScreen(
-                                self.repo_path,
-                                self.store.board_meta(self.repo_path),
-                                False,
-                                {key: getattr(self.config, key) for key in ConfigScreen.GLOBAL_KEYS},
-                                sorted(app.available_themes),
-                                (None, []),
-                            )
-                        app.push_screen(screen)
+                        app.theme = theme
                         await pilot.pause()
                         select = screen.query_one(selector, Select)
                         select.focus()
@@ -225,8 +221,7 @@ class ModalStyleTests(BoardTestCase):
                         self.assertTrue(screen.region.contains_region(overlay.region))
                         await pilot.press("escape")
                         self.assertIs(app.screen, screen)
-                        app.pop_screen()
-                        await pilot.pause()
+                await app.pop_screen()
 
     async def test_repository_without_default_path_accepts_a_typed_path(self):
         app = self.make_app()
