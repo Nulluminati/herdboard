@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import sys
@@ -9,7 +10,8 @@ from unittest import mock
 from herdboard import cli
 from herdboard.model import ConflictError
 from herdboard.store import Store
-from support.herdboard_cli import CliTestCase
+from support.git_env import isolated
+from support.herdboard_cli import CliTestCase, git
 from support.paths import ROOT
 
 SRC = ROOT / "src"
@@ -178,6 +180,7 @@ class CommandTests(CliTestCase):
                 "parent",
                 "archived",
                 "promoted",
+                "changes",
             },
         )
         self.assertEqual(data["cards"][0]["source"], "todo")
@@ -454,6 +457,37 @@ class CommandTests(CliTestCase):
         data = self.run_json("show", card["ref"], directory=self.plain)["card"]
         for name in ("agent_status", "planning_status", "review_status", "pr_write_status", "planned", "reviewed"):
             self.assertNotIn(name, data)
+
+    def started_worktree(self, ref):
+        """A worktree of the repository on the branch feat/x, with a start record for the card."""
+        self.enterContext(mock.patch.dict(os.environ, isolated()))
+        (self.repo / "app.py").write_text("one\n")
+        git(self.repo, "add", ".")
+        git(self.repo, "commit", "-q", "-m", "init")
+        git(self.repo, "branch", "-M", "main")
+        worktree = self.repo.parent / "work"
+        git(self.repo, "worktree", "add", "-q", "-b", "feat/x", str(worktree), "main")
+        state = Path(os.environ["XDG_STATE_HOME"]) / "herdboard"
+        state.mkdir(parents=True, exist_ok=True)
+        record = {"ref": ref, "worktree_path": str(worktree), "base": "main", "branch": "feat/x"}
+        (state / "starts.json").write_text(json.dumps({ref: record}))
+        return worktree
+
+    def test_json_changes_of_a_started_card_count_its_worktree_lines(self):
+        card = self.run_json("add", "buy", directory=self.plain)["card"]
+        worktree = self.started_worktree(card["ref"])
+        (worktree / "app.py").write_text("two\nthree\n")
+        (worktree / "notes.md").write_text("a\n")
+        expected = {"added": 3, "removed": 1, "files": 2}
+        self.assertEqual(self.run_json("show", card["ref"], directory=self.plain)["card"]["changes"], expected)
+        listed = self.run_json("list", "--board", "inbox", directory=self.plain)["cards"]
+        self.assertEqual([item["changes"] for item in listed], [expected])
+
+    def test_json_changes_of_an_unstarted_card_are_null(self):
+        card = self.run_json("add", "buy", directory=self.plain)["card"]
+        self.assertIsNone(self.run_json("show", card["ref"], directory=self.plain)["card"]["changes"])
+        listed = self.run_json("list", "--board", "inbox", directory=self.plain)["cards"]
+        self.assertEqual([item["changes"] for item in listed], [None])
 
     def test_move_text_and_json(self):
         card = self.run_json("add", "x", directory=self.plain)["card"]

@@ -11,7 +11,18 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import activity, agent_review, attachments, automations, factory, mockup, plan, pr_reviews, pr_write
+from . import (
+    activity,
+    agent_review,
+    attachments,
+    automations,
+    factory,
+    git_changes,
+    mockup,
+    plan,
+    pr_reviews,
+    pr_write,
+)
 from . import start as start_module
 from .agent_review import AgentReviewer
 from .config import AGENTS, THINKING_LEVELS, config_path, load_config, thinking_levels
@@ -532,6 +543,17 @@ def _card_dict(card: CardView) -> dict:
     return data
 
 
+def _mark_changes(ctx: _Context, cards: list[CardView]) -> None:
+    """Set the worktree changes of the cards for the JSON output. A start state error gives no changes."""
+    if not ctx.args.json:
+        return
+    try:
+        start_module.mark_removed(cards)
+    except HerdboardError:
+        return
+    git_changes.mark(cards)
+
+
 def _emit_json(data: dict) -> None:
     print(json.dumps(data, ensure_ascii=False))
 
@@ -737,6 +759,7 @@ def _cmd_list(ctx: _Context) -> dict:
         cards = [card for card in cards if card.column.casefold() == wanted]
     # Every column of each listed board, including empty ones, so a caller can pick a move target.
     boards = [] if args.source == "linear" else [store.snapshot(path) for path in paths]
+    _mark_changes(ctx, cards)
     return {"cards": cards, "linear": result, "boards": boards}
 
 
@@ -824,6 +847,7 @@ def _cmd_show(ctx: _Context) -> dict:
     if LINEAR_REF.match(ref):
         ctx.views.source.require_active()
         card, result = _find_linear_card(ctx, ref)
+        _mark_changes(ctx, [card])
         return {
             "card": card,
             "linear": result,
@@ -832,6 +856,7 @@ def _cmd_show(ctx: _Context) -> dict:
             "factory": factory.summary(factory.factory_state(card.ref)),
         }
     card = ctx.store.show(ref, archived=True)
+    _mark_changes(ctx, [card])
     return {
         "card": card,
         "log": _card_log(ctx, card),
