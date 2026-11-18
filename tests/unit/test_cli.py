@@ -595,11 +595,19 @@ class NoticeTests(CliTestCase):
         self.assertEqual(self.run_json("show", self.ref)["card"]["body"], ["old"])
         self.assertEqual(self.prompts(), [])
 
-    def test_notice_edit_with_a_refused_parent_still_tells_the_agent(self):
+    def test_notice_edit_with_the_card_as_its_own_parent_changes_nothing(self):
         data = self.run_json("edit", self.ref, "--body", "new", "--parent", self.ref, expect=1)
         self.assertEqual(data["error"]["code"], "usage")
-        self.assertEqual(self.run_json("show", self.ref)["card"]["body"], ["new"])
-        self.assertEqual(len(self.prompts()), 1)
+        self.assertEqual(self.run_json("show", self.ref)["card"]["body"], ["old"])
+        self.assertEqual(self.prompts(), [])
+
+    def test_notice_edit_with_a_sub_card_as_parent_changes_nothing(self):
+        top = self.run_json("add", "top")["card"]["ref"]
+        child = self.run_json("add", "child", "--parent", top)["card"]["ref"]
+        data = self.run_json("edit", self.ref, "--body", "new", "--parent", child, expect=1)
+        self.assertEqual(data["error"]["code"], "parent_nested")
+        self.assertEqual(self.run_json("show", self.ref)["card"]["body"], ["old"])
+        self.assertEqual(self.prompts(), [])
 
     def test_notice_edit_with_a_linear_parent_changes_nothing(self):
         data = self.run_json("edit", self.ref, "--body", "new", "--parent", "ENG-1", expect=1)

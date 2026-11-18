@@ -87,6 +87,11 @@ class NoticeTests(unittest.TestCase):
         (state / "starts.json").write_text("not json")
         self.assertIsNone(notices.notify_card_agent(self.store, self.card.ref, ["details"]))
 
+    def test_skip_without_a_live_agent_is_null(self):
+        self.record()
+        self.fake.agent = False
+        self.assertIsNone(notices.notify_card_agent(self.store, self.card.ref, ["details"], skip=True))
+
     def test_skip_sends_nothing(self):
         self.record()
         notice = notices.notify_card_agent(self.store, self.card.ref, ["details"], skip=True)

@@ -96,6 +96,16 @@ class StoreParentTests(StoreTestCase):
             self.store.set_parent(self.parent.ref, self.parent.ref)
         self.assertEqual(raised.exception.code, "usage")
 
+    def test_check_parent_refuses_without_a_change(self):
+        child = self.store.add(self.inbox, "Child", parent=self.parent.ref)
+        loner = self.store.add(self.inbox, "Loner")
+        with self.assertRaises(HerdboardError) as raised:
+            self.store.check_parent(loner.ref, child.ref)
+        self.assertEqual(raised.exception.code, "parent_nested")
+        self.assertIsNone(self.store.show(loner.ref).parent)
+        self.store.check_parent(loner.ref, self.parent.ref)
+        self.assertIsNone(self.store.show(loner.ref).parent)
+
     def test_set_and_remove_a_parent(self):
         child = self.store.add(self.inbox, "Child")
         self.assertEqual(self.store.set_parent(child.ref, self.parent.ref).parent, self.parent.ref)

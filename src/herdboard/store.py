@@ -1158,6 +1158,14 @@ class Store:
         if child is not None and board.children(child):
             raise ParentError(f"{child} has sub-cards, so it cannot be a sub-card", "parent_nested")
 
+    def check_parent(self, ref: str, parent: str) -> None:
+        """Refuse, without a change, a parent that `set_parent` would refuse for this todo."""
+        located = self._resolve(ref)
+        with self._lock():
+            board = self._read(located.path)
+            card = self._find(board, located)
+            self._check_parent(board, parent, card.id)
+
     def set_parent(self, ref: str, parent: str | None) -> CardView:
         """Set or remove a todo's parent."""
 

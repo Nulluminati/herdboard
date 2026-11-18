@@ -1070,8 +1070,10 @@ def _cmd_edit(ctx: _Context) -> dict:
         fields["type"] = kind
     if args.due is not None or args.no_due:
         fields["due"] = args.due
-    # Before any write, so an unknown parent changes nothing.
+    # Before any write, so a parent that is unknown or refused changes nothing.
     parent = ctx.store.show(args.parent).ref if args.parent is not None else None
+    if parent is not None:
+        ctx.store.check_parent(args.ref, parent)
     card = None
     notice = None
     if args.title is not None or lines is not None or fields:
