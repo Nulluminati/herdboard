@@ -34,9 +34,10 @@ class Changes:
 def _git(directory: Path, *args: str) -> str | None:
     try:
         # Git prints file names as raw bytes. surrogateescape keeps a name that is not UTF-8,
-        # so the path still opens the same file.
+        # so the path still opens the same file. --no-optional-locks keeps a read-only command
+        # from taking index.lock, so an agent's own `git add` does not fail on it.
         result = subprocess.run(
-            ["git", "-C", str(directory), *args],
+            ["git", "--no-optional-locks", "-C", str(directory), *args],
             capture_output=True,
             encoding="utf-8",
             errors="surrogateescape",
@@ -72,7 +73,9 @@ def worktree_changes(worktree: Path, base: str | None, branch: str | None) -> Ch
     if not merge_base:
         return None
     # --numstat, not --shortstat: its output is not translated. A binary file shows "-" counts.
-    numstat = _git(worktree, "diff", "--numstat", merge_base.strip())
+    # diff-index, not diff: `git diff` refreshes and writes the index even with --no-optional-locks,
+    # and an agent's own `git add` fails while that write holds index.lock. -M finds renames, as diff does.
+    numstat = _git(worktree, "diff-index", "-M", "--numstat", merge_base.strip())
     untracked = _git(worktree, "ls-files", "-z", "--others", "--exclude-standard")
     if numstat is None or untracked is None:
         return None

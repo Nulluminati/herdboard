@@ -89,6 +89,24 @@ class GitChangesTests(WorktreeCase):
         (self.worktree / os.fsdecode(b"bad-\xff.txt")).write_text("x\n")
         self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(1, 0, 1))
 
+    def test_a_renamed_file_is_one_file_with_no_lines(self):
+        self.git(self.worktree, "mv", "app.py", "main.py")
+        self.commit()
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(0, 0, 1))
+
+    def test_counting_does_not_write_the_index(self):
+        # A file whose time no longer matches the index makes a plain `git diff` refresh and write
+        # the index, and an agent's `git add` at that moment fails on index.lock.
+        os.utime(self.worktree / "app.py", (1_000_000_000, 1_000_000_000))
+        found = subprocess.run(
+            ["git", "-C", str(self.worktree), "rev-parse", "--git-path", "index"], capture_output=True, text=True
+        )
+        index = Path(found.stdout.strip())
+        index = index if index.is_absolute() else self.worktree / index
+        before = index.stat().st_mtime_ns
+        self.assertEqual(git_changes.worktree_changes(self.worktree, "main", "feat/x"), Changes(0, 0, 0))
+        self.assertEqual(index.stat().st_mtime_ns, before)
+
     def test_a_git_command_that_hangs_gives_none(self):
         hung = subprocess.TimeoutExpired(["git"], git_changes.GIT_TIMEOUT)
         with patch.object(git_changes.subprocess, "run", side_effect=hung) as run:
