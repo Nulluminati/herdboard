@@ -129,5 +129,59 @@ class AgentStatesTests(unittest.TestCase):
         self.assertIsNone(item.planning_status)
 
 
+class AgentPanesTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.state = Path(temp.name) / "state" / "herdboard"
+        self.enterContext(patch.dict(os.environ, {"XDG_STATE_HOME": str(Path(temp.name) / "state")}))
+
+    def write(self, name, records):
+        self.state.mkdir(parents=True, exist_ok=True)
+        (self.state / name).write_text(json.dumps(records))
+
+    def test_no_state_files_give_no_panes(self):
+        self.assertEqual(agent_states.agent_panes(), set())
+
+    def test_every_agent_pane_of_every_card_counts(self):
+        self.write(
+            "starts.json",
+            {
+                "t123": {
+                    "ref": "t123",
+                    "pane_id": "w1:p1",
+                    "agent_name": "hb-t123",
+                    "agent_review": {"pane_id": "w1:p2", "kind": "pi"},
+                    "pr_write": {"pane_id": "w1:p3"},
+                    "factory": {"panes": ["w1:p4", "w1:p5"]},
+                },
+                "t456": {"ref": "t456", "pane_id": "w2:p1", "agent_name": "hb-t456"},
+            },
+        )
+        self.write("plans.json", {"t789": {"pane_id": "w3:p1", "kind": "claude"}})
+        self.assertEqual(agent_states.agent_panes(), {"w1:p1", "w1:p2", "w1:p3", "w1:p4", "w1:p5", "w2:p1", "w3:p1"})
+
+    def test_a_start_without_an_agent_does_not_count_its_pane(self):
+        self.write("starts.json", {"t123": {"ref": "t123", "pane_id": "w1:p1"}})
+        self.assertEqual(agent_states.agent_panes(), set())
+
+    def test_malformed_records_give_no_panes(self):
+        self.write(
+            "starts.json",
+            {
+                "a": "not a record",
+                "b": {"pane_id": 7, "agent_name": "hb-b", "agent_review": "x", "factory": {"panes": "w1:p1"}},
+                "c": {"factory": {"panes": [None, 3, ""]}},
+            },
+        )
+        self.write("plans.json", {"t1": None, "t2": {"pane_id": ""}})
+        self.assertEqual(agent_states.agent_panes(), set())
+
+    def test_an_unreadable_state_file_skips_only_that_file(self):
+        self.write("starts.json", {"t123": {"ref": "t123", "pane_id": "w1:p1", "agent_name": "hb-t123"}})
+        (self.state / "plans.json").write_text("not json")
+        self.assertEqual(agent_states.agent_panes(), {"w1:p1"})
+
+
 if __name__ == "__main__":
     unittest.main()

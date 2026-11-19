@@ -251,12 +251,21 @@ class EditGuardTests(CliTestCase):
         (state / "starts.json").write_text(
             json.dumps(
                 {
-                    self.ref: {"ref": self.ref, "steps_done": [], "pane_id": "w1:p2", "agent_name": "hb-x"},
+                    self.ref: {
+                        "ref": self.ref,
+                        "steps_done": [],
+                        "pane_id": "w1:p2",
+                        "agent_name": "hb-x",
+                        "agent_review": {"pane_id": "w1:p4", "kind": "pi"},
+                        "pr_write": {"pane_id": "w1:p5", "kind": "pi"},
+                        "factory": {"panes": ["w1:p6", "w1:p7"]},
+                    },
                     "other": {"ref": "tnone", "steps_done": [], "pane_id": "w1:p9"},
                 }
             ),
             encoding="utf-8",
         )
+        (state / "plans.json").write_text(json.dumps({self.ref: {"pane_id": "w1:p8", "kind": "claude"}}))
 
     def test_a_card_agent_cannot_edit_card_text(self):
         for option in (["--title", "New"], ["--body", "x"]):
@@ -264,6 +273,22 @@ class EditGuardTests(CliTestCase):
                 data = self.run_json("edit", self.ref, *option, directory=self.plain, expect=1)
                 self.assertEqual(data["error"]["code"], "agent_edit_denied")
                 self.assertIn("herdboard log", data["error"]["message"])
+
+    def test_every_agent_pane_of_a_card_cannot_edit_card_text(self):
+        panes = {
+            "agent reviewer": "w1:p4",
+            "PR writer": "w1:p5",
+            "factory reviewer": "w1:p6",
+            "factory approver": "w1:p7",
+            "planner": "w1:p8",
+        }
+        for agent, pane in panes.items():
+            with self.subTest(agent=agent), mock.patch.dict(os.environ, {"HERDR_PANE_ID": pane}):
+                data = self.run_json("edit", self.ref, "--title", "New", directory=self.plain, expect=1)
+                self.assertEqual(data["error"]["code"], "agent_edit_denied")
+        self.assertEqual(
+            self.run_json("show", self.ref, directory=self.plain)["card"]["title"], "Fix the login timeout"
+        )
 
     def test_a_card_agent_can_still_log_and_move(self):
         with (

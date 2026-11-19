@@ -259,7 +259,7 @@ class AddLinearTests(WriteCliCase):
     def test_card_agent_can_create_a_linear_issue_with_body(self):
         with (
             mock.patch.dict(os.environ, {"HERDR_PANE_ID": "w1:p2"}),
-            mock.patch.object(cli, "card_agent_panes", return_value={"w1:p2"}),
+            mock.patch.object(cli.agent_states, "agent_panes", return_value={"w1:p2"}),
         ):
             card = self.add("--team", "ENG", "New thing", "--body", "Details")["card"]
         self.assertEqual(card["body"], ["Details"])

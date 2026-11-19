@@ -14,6 +14,7 @@ from pathlib import Path
 from . import (
     activity,
     agent_review,
+    agent_states,
     attachments,
     automations,
     factory,
@@ -41,7 +42,7 @@ from .model import HerdboardError, IoError, NotFoundError
 from .plan import Planner
 from .promote import Promoter
 from .review import Reviewer
-from .start import Starter, _main_checkout, card_agent_panes, register_checkout
+from .start import Starter, _main_checkout, register_checkout
 from .store import CardView, Store
 from .views import INIT_MESSAGE, VIEW_NAMES, LinearResult, Views
 
@@ -1067,7 +1068,7 @@ def _cmd_edit(ctx: _Context) -> dict:
     kind = ctx.config.type_named(args.type) if args.type is not None else None
     # A guard against mistakes, not a security boundary: the card text is the user's.
     pane = os.environ.get("HERDR_PANE_ID")
-    if pane and pane in card_agent_panes():
+    if pane and pane in agent_states.agent_panes():
         raise AgentEditDenied(
             "Agents do not change the card title or details. "
             f'Record progress with `herdboard log {args.ref} "..."` instead.'

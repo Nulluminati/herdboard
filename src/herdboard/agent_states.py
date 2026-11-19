@@ -1,4 +1,5 @@
-"""The Herdr status of each agent pane that works on a card, for the board's glyphs.
+"""The Herdr status of each agent pane that works on a card, for the board's glyphs, and the set of
+those panes, for the guard that keeps agents from editing card text.
 
 One `herdr agent list` call gives the status of every agent pane. The start and plan records name
 the panes of a card's work agent, planner, agent reviewer and pull request writer. Agent status is
@@ -39,6 +40,26 @@ def _records(path) -> dict:
 def _pane(record) -> str | None:
     pane = record.get("pane_id") if isinstance(record, dict) else None
     return pane if isinstance(pane, str) and pane else None
+
+
+def agent_panes() -> set[str]:
+    """Every pane where an agent of a card runs: its work agent, planner, agent reviewer, pull request
+    writer, and the lens reviewers and approver of its factory run. An unreadable state file adds none."""
+    panes = {_pane(record) for record in _records(plan._plans_path()).values()}
+    for record in _records(start.state_dir() / "starts.json").values():
+        if not isinstance(record, dict):
+            continue
+        # The start's own pane counts only after `start` recorded an agent in it.
+        if record.get("agent_name"):
+            panes.add(_pane(record))
+        panes.add(_pane(record.get("agent_review")))
+        panes.add(_pane(record.get("pr_write")))
+        factory = record.get("factory")
+        factory_panes = factory.get("panes") if isinstance(factory, dict) else None
+        if isinstance(factory_panes, list):
+            panes.update(pane for pane in factory_panes if isinstance(pane, str) and pane)
+    panes.discard(None)
+    return panes
 
 
 def mark(cards) -> None:

@@ -115,7 +115,7 @@ class CommandTests(CliTestCase):
     def test_card_agent_can_add_body_but_cannot_edit_it(self):
         with (
             mock.patch.dict(os.environ, {"HERDR_PANE_ID": "w1:p2"}),
-            mock.patch.object(cli, "card_agent_panes", return_value={"w1:p2"}),
+            mock.patch.object(cli.agent_states, "agent_panes", return_value={"w1:p2"}),
         ):
             card = self.run_json("add", "notes", "--body", "original")["card"]
             data = self.run_json("edit", card["ref"], "--body", "changed", expect=1)
