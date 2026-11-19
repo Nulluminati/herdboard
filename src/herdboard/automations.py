@@ -350,15 +350,18 @@ def _check(
     check_type: bool = True,
     check_thinking: bool = True,
     check_schedule: bool = True,
+    check_agent: bool = True,
+    check_model: bool = True,
+    check_tags: bool = True,
 ) -> Automation:
     """Check every field before a write. Returns the automation with the type's configured name.
-    A change that keeps the saved preset, board, type, thinking level or schedule passes False for it, so one
-    that went bad after the save does not block a pause or an unrelated edit."""
+    A change that keeps the saved preset, board, type, thinking level, schedule, agent, model or tags passes False
+    for it, so one that went bad after the save does not block a pause or an unrelated edit."""
     config = store.config
     title = " ".join(item.title.split())
     if not title:
         raise AutomationError("An automation needs a title")
-    for tag in item.tags:
+    for tag in item.tags if check_tags else ():
         if not tag or any(ch.isspace() or ch == "#" for ch in tag):
             raise AutomationError(f"Tag {tag!r} must be one word without #")
     kind = config.type_named(item.type) if item.type and check_type else item.type or None
@@ -391,13 +394,13 @@ def _check(
             )
     if check_schedule:
         parse_schedule(item.schedule)
-    if item.agent is not None and item.agent not in AGENTS:
+    if check_agent and item.agent is not None and item.agent not in AGENTS:
         raise AutomationError("The agent must be claude, pi or codex")
     agent = item.agent or config.start_agent
     levels = thinking_levels(agent)
     if check_thinking and item.thinking and item.thinking not in levels:
         raise AutomationError(f"Thinking must be one of {', '.join(levels)}")
-    if item.model is not None and (not item.model or any(ch.isspace() for ch in item.model)):
+    if check_model and item.model is not None and (not item.model or any(ch.isspace() for ch in item.model)):
         raise AutomationError("The model must be one name, such as zai/glm-5.3")
     return replace(item, title=title, type=kind, tags=list(item.tags))
 
@@ -480,6 +483,9 @@ def _change(store, automation_id: str, change, saved=None) -> tuple[Automation, 
                     # The levels depend on the agent, so a change of the agent checks the level too.
                     check_thinking=(changed.thinking, changed.agent) != (item.thinking, item.agent),
                     check_schedule=changed.schedule != item.schedule,
+                    check_agent=changed.agent != item.agent,
+                    check_model=changed.model != item.model,
+                    check_tags=changed.tags != item.tags,
                 )
                 current[index] = changed
                 save(store.config, current)

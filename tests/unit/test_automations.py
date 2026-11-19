@@ -3,6 +3,7 @@
 import json
 import os
 import plistlib
+import re
 import subprocess
 import tempfile
 import time
@@ -301,6 +302,23 @@ class StorageTests(AutomationTestCase):
         with self.assertRaisesRegex(HerdboardError, "Unknown schedule 'every 3 fortnights'"):
             automations.edit(self.store, saved.id, schedule="every 3 fortnights")
         self.assertEqual(automations.edit(self.store, saved.id, schedule="every day").schedule, "every day")
+
+    def test_a_stale_saved_agent_model_or_tag_does_not_block_pause_or_unrelated_edits(self):
+        for field, stale, error, bad, good in (
+            ("agent", "gpt5", "The agent must be claude, pi or codex", "gpt6", "claude"),
+            ("model", "two words", "The model must be one name", "three more words", "zai/glm-5.3"),
+            ("tags", ["#old"], "Tag '#new' must be one word without #", ["#new"], ["sec"]),
+        ):
+            with self.subTest(field=field):
+                saved = self.add()
+                automations.save(self.config, [replace(saved, **{field: stale})])
+                self.assertFalse(automations.set_enabled(self.store, saved.id, False).enabled)
+                self.assertTrue(automations.set_enabled(self.store, saved.id, True).enabled)
+                edited = automations.edit(self.store, saved.id, title="New title")
+                self.assertEqual((edited.title, getattr(edited, field)), ("New title", stale))
+                with self.assertRaisesRegex(HerdboardError, re.escape(error)):
+                    automations.edit(self.store, saved.id, **{field: bad})
+                self.assertEqual(getattr(automations.edit(self.store, saved.id, **{field: good}), field), good)
 
     def test_claude_takes_its_own_thinking_levels(self):
         added = self.add(agent="claude", thinking="max")
