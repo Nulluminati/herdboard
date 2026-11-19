@@ -2408,6 +2408,8 @@ def _main(argv: list[str] | None) -> int:
                 _emit_json(result)
             elif result["updated"]:
                 print(f"Updated herdboard to v{result['latest']}. Reopen the board.")
+                if result.get("hint"):
+                    print(result["hint"])
             else:
                 print(f"herdboard v{result['latest']} is the latest release")
             return 0

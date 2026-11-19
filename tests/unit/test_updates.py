@@ -183,16 +183,42 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, "update_check_failed")
         self.assertEqual(runner.calls, [])
 
-    def test_a_linked_clone_is_not_updated(self):
-        runner = FakeRunner((0, plugin_list("local", "/home/me/Projects/herdboard"), ""))
-        with self.assertRaises(updates.UpdateUnsupportedError) as caught:
-            self.update(runner)
-        self.assertEqual(caught.exception.code, "update_unsupported")
-        self.assertIn("git pull", str(caught.exception))
-        self.assertIn("/home/me/Projects/herdboard", str(caught.exception))
+    def test_a_linked_clone_updates_only_an_older_command(self):
+        runner = FakeRunner((0, plugin_list("local", "/home/me/Projects/herdboard", version="0.2.0"), ""), (0, "", ""))
         self.assertEqual(
-            runner.calls, [["/opt/herdr", "plugin", "list", "--plugin", "nulluminati.herdboard", "--json"]]
+            self.update(runner, latest="0.2.0", current="0.1.0"),
+            {"current": "0.1.0", "plugin": "0.2.0", "latest": "0.2.0", "updated": True},
         )
+        self.assertEqual(
+            runner.calls,
+            [self.LIST, ["uv", "tool", "install", "--force", "git+https://github.com/Nulluminati/herdboard@v0.2.0"]],
+        )
+
+    def test_an_older_linked_clone_updates_the_command_and_gives_a_git_pull_hint(self):
+        runner = FakeRunner((0, plugin_list("local", "/home/me/Projects/herdboard"), ""), (0, "", ""))
+        self.assertEqual(
+            self.update(runner),
+            {
+                "current": "0.1.0",
+                "plugin": "0.1.0",
+                "latest": "0.2.0",
+                "updated": True,
+                "hint": "The Herdr plugin is a linked clone. Run git pull in /home/me/Projects/herdboard.",
+            },
+        )
+        self.assertEqual(
+            runner.calls,
+            [self.LIST, ["uv", "tool", "install", "--force", "git+https://github.com/Nulluminati/herdboard@v0.2.0"]],
+        )
+
+    def test_a_failed_tool_install_in_a_linked_clone_fails_the_update(self):
+        runner = FakeRunner(
+            (0, plugin_list("local", "/home/me/Projects/herdboard", version="0.2.0"), ""), (2, "", "no uv")
+        )
+        with self.assertRaises(updates.UpdateFailedError) as caught:
+            self.update(runner, latest="0.2.0", current="0.1.0")
+        self.assertIn("no uv", str(caught.exception))
+        self.assertNotIn("The Herdr plugin is at", str(caught.exception))
 
     def test_a_missing_plugin_is_not_updated(self):
         empty = json.dumps({"result": {"plugins": [], "type": "plugin_list"}})
@@ -262,6 +288,12 @@ class UpdateCliTests(CliTestCase):
         with patch("herdboard.updates.update", return_value={"current": "0.1.0", "latest": "0.2.0", "updated": True}):
             out, _ = self.run_cli("update")
         self.assertEqual(out, "Updated herdboard to v0.2.0. Reopen the board.\n")
+
+    def test_text_reports_the_hint(self):
+        result = {"current": "0.1.0", "latest": "0.2.0", "updated": True, "hint": "Run git pull in /x."}
+        with patch("herdboard.updates.update", return_value=result):
+            out, _ = self.run_cli("update")
+        self.assertEqual(out, "Updated herdboard to v0.2.0. Reopen the board.\nRun git pull in /x.\n")
 
     def test_text_reports_the_latest_release(self):
         with patch("herdboard.updates.update", return_value={"current": "0.2.0", "latest": "0.2.0", "updated": False}):

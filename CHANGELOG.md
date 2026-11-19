@@ -6,6 +6,13 @@ All notable changes to herdboard are in this file. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `herdboard update` now updates the `herdboard` command when the Herdr plugin
+  is a linked clone. It refused the whole update with a `git pull` hint, which
+  does not update the command. The hint now shows only when the clone is older
+  than the release.
+
 ## [0.3.0] - 2026-11-17
 
 ### Added

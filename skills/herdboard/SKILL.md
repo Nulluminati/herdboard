@@ -286,6 +286,6 @@ Errors are JSON on stdout: `{"error": {"code": "...", "message": "..."}}`. Exit 
 | `unknown_board` | The automation's board does not exist. Run `list` for the board names, or ask the user. |
 | `unsupported_platform`, `herdr_not_found`, `herdboard_not_found`, `timer_failed` | `automation timer` works on Linux (systemd) and macOS (launchd), and needs `herdr` and `herdboard` on the PATH. Tell the user the message. |
 | `update_check_failed` | `update` could not read the latest release from GitHub. Tell the user the message. |
-| `update_unsupported` | herdboard is a linked clone, not a GitHub install. Tell the user to run `git pull` in the clone. |
+| `update_unsupported` | The Herdr plugin is a linked clone, not a GitHub install, and is older than the release. The command is current. Tell the user to run `git pull` in the clone. |
 | `update_failed` | A command of `update` failed. Tell the user the message. It says what to run when only the Herdr plugin was updated. |
 | `herdr_unavailable`, `herdr_error` | `start` needs a running Herdr, or a Herdr command failed. Tell the user the message. Running `start` again continues from the step that failed. |

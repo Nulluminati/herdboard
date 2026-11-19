@@ -122,8 +122,8 @@ def update(current: str, run: Callable[[list[str]], subprocess.CompletedProcess]
     """Install the latest release for the Herdr plugin and the `herdboard` command, when it is newer than either.
 
     `current` is the version of the command. The plugin can be older than the command, because each has its
-    own install command. Only a GitHub install of the plugin updates. `run` runs each command and returns its
-    result."""
+    own install command. Only a GitHub install of the plugin updates; for an older linked clone, the result has a
+    `hint` to run git pull. `run` runs each command and returns its result."""
     latest = latest_release()
     if latest is None:
         raise UpdateCheckFailedError(f"herdboard could not read the latest release from {RELEASES_URL}")
@@ -133,10 +133,16 @@ def update(current: str, run: Callable[[list[str]], subprocess.CompletedProcess]
     result = {"current": current, "plugin": version if isinstance(version, str) else "", "latest": latest}
     if not is_newer(latest, current) and not is_newer(latest, result["plugin"]):
         return {**result, "updated": False}
-    if (plugin.get("source") or {}).get("kind") != "github":
-        root = plugin.get("plugin_root") or "the plugin folder"
-        raise UpdateUnsupportedError(f"This install is a linked clone. Run git pull in {root} instead.")
     tag = f"v{latest}"
+    if (plugin.get("source") or {}).get("kind") != "github":
+        # A linked clone updates with git pull. The command is a uv tool install and still updates.
+        root = plugin.get("plugin_root") or "the plugin folder"
+        if not is_newer(latest, current):
+            raise UpdateUnsupportedError(f"This install is a linked clone. Run git pull in {root} instead.")
+        _checked(run, ["uv", "tool", "install", "--force", f"{TOOL_SOURCE}@{tag}"])
+        if is_newer(latest, result["plugin"]):
+            return {**result, "updated": True, "hint": f"The Herdr plugin is a linked clone. Run git pull in {root}."}
+        return {**result, "updated": True}
     _checked(run, [herdr, "plugin", "install", REPOSITORY, "--ref", tag, "--yes"])
     try:
         _checked(run, ["uv", "tool", "install", "--force", f"{TOOL_SOURCE}@{tag}"])
