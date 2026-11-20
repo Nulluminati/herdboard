@@ -99,7 +99,7 @@ Ask the user first before these. They change shared Linear data, open workspaces
 - `delete <id> --yes` (removes a todo for good; Linear issues cannot be deleted here).
 - `archive --done` (archives every card in the board's done column).
 - `link`, `pin`, `init`, `migrate --yes`, `doctor --fix`, `convert-store`.
-- `update` (installs the latest herdboard release for the Herdr plugin and the `herdboard` command, when either is older).
+- `update` (installs the latest herdboard release for the Herdr plugin and the `herdboard` command, when either is older). With a linked clone of the plugin, it updates only the command. When the clone is older too, the result has a `hint`: tell the user to run `git pull` in the clone.
 - Every `automation` command except `automation list`. Automations spawn cards and start agents on a schedule; change one only when the user asks.
 
 ```bash
@@ -288,4 +288,8 @@ Errors are JSON on stdout: `{"error": {"code": "...", "message": "..."}}`. Exit 
 | `update_check_failed` | `update` could not read the latest release from GitHub. Tell the user the message. |
 | `update_unsupported` | The Herdr plugin is a linked clone, not a GitHub install, and is older than the release. The command is current. Tell the user to run `git pull` in the clone. |
 | `update_failed` | A command of `update` failed. Tell the user the message. It says what to run when only the Herdr plugin was updated. |
+| `start_failed` | `start`, `plan` or `automation plan` stopped at a step that has no code of its own, such as a folder that it cannot create. Tell the user the message. |
+| `format` | A value or a board file is not valid, such as a due date that is not `YYYY-MM-DD` or a title with more than one line. Fix a value that you gave. When the message names a file, tell the user the message; do not edit the file. |
+| `identity` | herdboard could not match the repository to one board: Git is not installed, the remote URL cannot be parsed, two boards claim the repository, or the board name is taken. Tell the user the message. |
+| `cancelled` | The user chose no Linear state at the prompt. Nothing changed. |
 | `herdr_unavailable`, `herdr_error` | `start` needs a running Herdr, or a Herdr command failed. Tell the user the message. Running `start` again continues from the step that failed. |
