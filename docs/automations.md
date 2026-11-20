@@ -48,6 +48,7 @@ The timer files hold absolute paths: the `herdboard` command, the `herdr` binary
 - After sleep or power-off, the next tick spawns one card for the latest missed due time, and logs how many it skipped.
 - When the start fails, the card stays in (or goes back to) its first column, its log says `Auto start failed: <reason>`, and herdboard shows a notification. No later tick retries it. Start the card by hand.
 - A resumed automation, or one with a changed schedule, waits for its next due time. It does not catch up.
+- An automation without an agent of its own uses `start_agent`. When `start_agent` does not take the saved thinking level, the run starts the agent with its default level and logs that on the card.
 
 ## Merge instruction
 
@@ -82,6 +83,8 @@ When at least one automation is on and the timer is not active, the status line 
 | `x` | Remove the automation, after you confirm. Its cards stay |
 | `r` | Read the automations again. The tab also reads them every 30 seconds |
 | `escape`, `G` | Back to the board |
+
+A pause, a resume or an edit checks only the fields that it changes. A change of the agent also checks the thinking level, and a change that turns on factory mode also checks the board. A saved board, type, preset, schedule, agent, model, thinking level or tag that became invalid later does not block it. The same applies to `automation pause`, `resume` and `edit`.
 
 Limits:
 

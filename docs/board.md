@@ -160,7 +160,7 @@ The board checks planner panes every two seconds. If Herdr cannot answer, the ma
 
 The board checks the attachments folder at the same interval. A folder that cannot be read hides only the `≡` markers.
 
-The board counts the worktree changes at the same interval. An untracked binary file, or one larger than 1 MB, does not count. When a Git command fails, or the start record has no base and the branch has no upstream, the card shows no change marker.
+The board counts the worktree changes at the same interval. An untracked binary file, or one larger than 1 MB, does not count. When a Git command fails or runs for more than 5 seconds, or the start record has no base and the branch has no upstream, the card shows no change marker.
 
 ## Agent states
 
