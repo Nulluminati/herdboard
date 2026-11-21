@@ -29,10 +29,10 @@ from .agent_review import (
     FINDINGS_HEADINGS,
     REVIEW_COMMAND_RULES,
     REVIEWERS,
+    FindingBullets,
     _reviewer_status,
     capture_change,
     heading_text,
-    is_none_bullet,
     launch_reviewer,
     read_change,
     request_text,
@@ -151,13 +151,15 @@ def _is_heading(line: str) -> bool:
 
 
 def _section(text: str, heading: str) -> list[str]:
-    """The `- ` lines under a `heading`, up to the next heading. A line in a fenced code block is not one."""
-    lines, inside = [], False
+    """The findings under a `heading`, up to the next heading: its list items at the list's level.
+
+    A line in a fenced code block, a "- None." line and a nested detail line are not findings."""
+    lines, inside, bullets = [], False, FindingBullets()
     for line in unfenced_lines(text):
         if _is_heading(line):
-            inside = heading_text(line) == heading.casefold()
+            inside, bullets = heading_text(line) == heading.casefold(), FindingBullets()
             continue
-        if inside and line.startswith("- ") and not is_none_bullet(line):
+        if inside and bullets.is_finding(line):
             lines.append(line)
     return lines
 

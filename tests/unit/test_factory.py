@@ -245,6 +245,26 @@ class LensTests(FactoryTestCase):
         limits = text + "\n## Verification limits\n- The tests could not run in the sandbox.\n"
         self.assertEqual((factory.count_confirmed(limits), factory.count_questions(limits)), (2, 1))
 
+    def test_count_confirmed_accepts_other_bullet_styles(self):
+        for bullet in ("* ", "+ ", "1. ", "2) ", "  - ", "\t- "):
+            with self.subTest(bullet=bullet):
+                text = f"## Confirmed problems\n{bullet}[high] a.py:1: bug.\n\n"
+                text += f"## Risks and questions\n{bullet}a.py:2: why?\n"
+                self.assertEqual((factory.count_confirmed(text), factory.count_questions(text)), (1, 1))
+        numbered = "## Confirmed problems\n1. [high] a.py:1: bug.\n2. [low] a.py:2: style.\n1. None.\n"
+        self.assertEqual(factory.count_confirmed(numbered), 2)
+
+    def test_a_nested_bullet_is_part_of_its_finding(self):
+        text = (
+            "## Confirmed problems\n1. [high] a.py:1: bug.\n   - Proof: the test fails.\n   - Fix: drop it.\n"
+            "2. [low] a.py:2: style.\n\n## Risks and questions\n  - a.py:3: why?\n    - detail\n  - a.py:4: how?\n"
+        )
+        self.assertEqual((factory.count_confirmed(text), factory.count_questions(text)), (2, 2))
+
+    def test_an_emphasis_or_rule_line_is_not_a_bullet(self):
+        text = "## Confirmed problems\n*Note:* none of these block.\n**a.py:1** looks odd.\n- [high] a.py:2: bug.\n"
+        self.assertEqual(factory.count_confirmed(text), 1)
+
     def test_a_line_inside_a_code_fence_is_not_counted(self):
         text = (
             "## Confirmed problems\n- [high] src/api.py:41: the retry drops the last attempt.\n\n"

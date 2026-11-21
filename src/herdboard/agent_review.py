@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -469,11 +470,44 @@ def heading_text(line: str) -> str:
     return line.strip().lstrip("#").strip(" \t*_").rstrip(":").strip(" \t*_").casefold()
 
 
+# A list item: optional indentation, a `-`, `*` or `+` mark or a number with `.` or `)`, then a space.
+_LIST_ITEM = re.compile(r"([ \t]*)(?:[-*+]|\d+[.)])[ \t]+(.*)")
+
+
+def list_item(line: str) -> tuple[int, str] | None:
+    """The indentation and text of a list item line. None for another line.
+
+    `**Note**` and `*Note:*` are emphasis, not list items: a list mark needs a space after it."""
+    match = _LIST_ITEM.fullmatch(line)
+    return (len(match.group(1)), match.group(2)) if match else None
+
+
+class FindingBullets:
+    """Picks the findings out of the list items of one section.
+
+    The first item sets the list's level. A deeper item is a detail of the finding above it, not a finding.
+    A reviewer may indent the whole list, or number it, so the level is not always 0."""
+
+    def __init__(self) -> None:
+        self.level: int | None = None
+
+    def is_finding(self, line: str) -> bool:
+        item = list_item(line)
+        if item is None:
+            return False
+        if self.level is None:
+            self.level = item[0]
+        return item[0] <= self.level and not is_none_bullet(line)
+
+
 def is_none_bullet(line: str) -> bool:
     """A reviewer may write "- None." in an empty section. It is not a finding.
 
-    The word can be in `*` or `_` emphasis: `- **None.**`, `- **None**.` and `- _none_` are the same bullet."""
-    return line[2:].strip(" \t*_").rstrip(".").strip(" \t*_").casefold() == "none"
+    The word can be in `*` or `_` emphasis: `- **None.**`, `- **None**.` and `- _none_` are the same bullet.
+    Any list mark is the same: `* None.` and `1. None.` are none bullets too."""
+    item = list_item(line)
+    text = item[1] if item else line[2:]
+    return text.strip(" \t*_").rstrip(".").strip(" \t*_").casefold() == "none"
 
 
 def _fence(line: str) -> str | None:
@@ -511,13 +545,15 @@ def unfenced_lines(text: str) -> Iterator[str]:
 
 
 def _count_findings(findings: Path) -> int:
-    """The `- ` lines of the findings. The lines under Verification limits and a "- None." line are not findings."""
-    count, limits = 0, False
+    """The list items of the findings, at each section's list level.
+
+    The lines under Verification limits, a "- None." line and a nested detail line are not findings."""
+    count, limits, bullets = 0, False, FindingBullets()
     for line in unfenced_lines(findings.read_text(encoding="utf-8", errors="replace")):
         heading = heading_text(line)
         if line.startswith("## ") or heading in FINDINGS_HEADINGS:
-            limits = heading == "verification limits"
-        elif line.startswith("- ") and not limits and not is_none_bullet(line):
+            limits, bullets = heading == "verification limits", FindingBullets()
+        elif not limits and bullets.is_finding(line):
             count += 1
     return count
 

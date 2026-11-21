@@ -317,6 +317,29 @@ class RequestTests(AgentReviewTestCase):
             with self.subTest(bullet=bullet):
                 self.assertFalse(agent_review.is_none_bullet(bullet))
 
+    def test_a_finding_in_another_bullet_style_is_counted(self):
+        findings = self.root / "findings.md"
+        for bullet in ("* ", "+ ", "1. ", "2) ", "  - "):
+            with self.subTest(bullet=bullet):
+                findings.write_text(
+                    f"## Confirmed problems\n{bullet}[high] a.py:1: bug.\n\n## Risks and questions\n- a.py:2: why?\n\n"
+                    f"## Verification limits\n{bullet}The tests could not run.\n"
+                )
+                self.assertEqual(agent_review._count_findings(findings), 2)
+
+    def test_a_none_bullet_in_another_bullet_style_is_not_counted(self):
+        for bullet in ("* None.", "1. **None**", "  - none"):
+            with self.subTest(bullet=bullet):
+                self.assertTrue(agent_review.is_none_bullet(bullet))
+
+    def test_a_nested_bullet_is_not_counted_as_a_finding(self):
+        findings = self.root / "findings.md"
+        findings.write_text(
+            "## Confirmed problems\n1. [high] a.py:1: bug.\n   - Proof: the test fails.\n"
+            "## Risks and questions\n- a.py:2: why?\n  - detail\n"
+        )
+        self.assertEqual(agent_review._count_findings(findings), 2)
+
     def test_a_line_inside_a_code_fence_is_not_counted_as_a_finding(self):
         findings = self.root / "findings.md"
         for fence in ("```", "~~~", "````", "  ```"):
