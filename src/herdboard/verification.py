@@ -283,6 +283,11 @@ class Report:
     data: dict | None = None
 
 
+def _word(value):
+    """`value` in lower case when it is text, so a word that an agent capitalises still counts."""
+    return value.casefold() if isinstance(value, str) else value
+
+
 def _read_bounded(path: Path, limit: int) -> bytes:
     """At most `limit` bytes; raises ValueError for a larger file."""
     with path.open("rb") as handle:
@@ -417,9 +422,9 @@ def validate_report(evidence_dir: Path, *, run_id: str, contract: Contract, head
         if check_id in statuses:
             problems.append(f"The report has two results for check {check_id}.")
             continue
-        status = entry.get("status")
+        status = _word(entry.get("status"))
         if status not in STATUSES:
-            problems.append(f"{where}.status must be one of {', '.join(STATUSES)}.")
+            problems.append(f"{where}.status {json.dumps(entry.get('status'))} must be one of {', '.join(STATUSES)}.")
             continue
         statuses[check_id] = status
         for name in ("action", "observed"):
@@ -502,9 +507,9 @@ def _approval_problems(contract: Contract, report: Report, approval, verdict: st
     if isinstance(approval.get("version"), bool) or approval.get("version") != VERSION:
         problems.append(f"{APPROVAL_NAME} version must be {VERSION}.")
     stated = approval.get("verdict")
-    if stated not in ("approve", "changes needed"):
-        problems.append(f'{APPROVAL_NAME} verdict must be "approve" or "changes needed".')
-    elif verdict == "approve" and stated != "approve":
+    if _word(stated) not in ("approve", "changes needed"):
+        problems.append(f'{APPROVAL_NAME} verdict {json.dumps(stated)} must be "approve" or "changes needed".')
+    elif verdict == "approve" and _word(stated) != "approve":
         problems.append(f"{APPROVAL_NAME} says {stated}, but verdict.md says approve.")
     criteria = approval.get("criteria")
     if not isinstance(criteria, list):
@@ -521,10 +526,10 @@ def _approval_problems(contract: Contract, report: Report, approval, verdict: st
             problems.append(f"{where} names unknown criterion {name}.")
         elif name in outcomes:
             problems.append(f"{APPROVAL_NAME} has two outcomes for criterion {name}.")
-        elif entry.get("outcome") not in OUTCOMES:
-            problems.append(f"{where}.outcome must be satisfied or unsatisfied.")
+        elif _word(entry.get("outcome")) not in OUTCOMES:
+            problems.append(f"{where}.outcome {json.dumps(entry.get('outcome'))} must be satisfied or unsatisfied.")
         else:
-            outcomes[name] = entry["outcome"]
+            outcomes[name] = _word(entry["outcome"])
     for name in contract.criterion_ids:
         if name not in outcomes and not any(f"criterion {name}" in problem for problem in problems):
             problems.append(f"{APPROVAL_NAME} has no outcome for criterion {name}.")

@@ -220,6 +220,16 @@ class ReportTests(EvidenceTestCase):
         self.assertEqual(report.problems, [])
         self.assertEqual(report.statuses, {"unit": "failed", "live": "blocked"})
 
+    def test_a_status_in_any_capitalisation(self):
+        self.report(results=[result("unit", "Passed", exit_code=0), result("live", "NOT_APPLICABLE", evidence=[])])
+        report = self.validate()
+        self.assertEqual(report.problems, [])
+        self.assertEqual(report.statuses, {"unit": "passed", "live": "not_applicable"})
+
+    def test_an_unknown_status_is_named_as_written(self):
+        self.report(results=[result("unit", "Done"), result("live", evidence=["live.txt"])])
+        self.assertIn('results[0].status "Done" must be one of', self.problems())
+
     def test_evidence_paths_stay_in_the_evidence_folder(self):
         outside = self.root / "secret.txt"
         outside.write_text("secret\n")
@@ -361,6 +371,25 @@ class GateTests(EvidenceTestCase):
                 effective, reasons, _ = self.gate(**options)
                 self.assertEqual(effective, "changes needed")
                 self.assertIn(words, " | ".join(reasons))
+
+    def test_a_verdict_and_outcome_in_any_capitalisation(self):
+        criteria = [{**entry, "outcome": "Satisfied"} for entry in approval()["criteria"]]
+        effective, reasons, _ = self.gate(value=approval("Approve", criteria=criteria))
+        self.assertEqual((effective, reasons), ("approve", []))
+        criteria[1]["outcome"] = "UNSATISFIED"
+        effective, reasons, _ = self.gate(value=approval("Approve", criteria=criteria))
+        self.assertEqual(effective, "changes needed")
+        self.assertEqual(reasons, ["The approver found criterion AC2 unsatisfied."])
+
+    def test_a_disagreeing_or_unknown_word_is_named_as_written(self):
+        effective, reasons, _ = self.gate(value=approval("Changes Needed"))
+        self.assertEqual(effective, "changes needed")
+        self.assertIn("approval.json says Changes Needed, but verdict.md says approve.", reasons)
+        _, reasons, _ = self.gate(value=approval("Approved"))
+        self.assertIn('approval.json verdict "Approved" must be "approve" or "changes needed".', reasons)
+        criteria = [{**approval()["criteria"][0], "outcome": "Met"}, approval()["criteria"][1]]
+        _, reasons, _ = self.gate(value=approval(criteria=criteria))
+        self.assertIn('approval.json criteria[0].outcome "Met" must be satisfied or unsatisfied.', reasons)
 
     def test_an_unsatisfied_criterion(self):
         criteria = approval()["criteria"]
