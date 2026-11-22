@@ -703,9 +703,14 @@ Finish writing the complete verdict file before you end your turn. Do not wait f
 
 
 def verdict_of(text: str) -> str:
-    first = text.strip().splitlines()[0].strip() if text.strip() else ""
-    found = re.match(r"verdict:\s*(.+)", first, re.IGNORECASE)
-    return found.group(1).strip().rstrip(".").casefold() if found else "unknown"
+    """The verdict on the first line, without its case, Markdown marks or trailing period.
+
+    `Verdict: approve`, `## Verdict: approve`, `**Verdict:** approve` and `Verdict: _approve_.` all give `approve`."""
+    first = text.strip().splitlines()[0].strip().lstrip("#").strip(" \t*_") if text.strip() else ""
+    found = re.match(r"verdict[*_]*:[*_]*\s*(.+)", first, re.IGNORECASE)
+    if not found:
+        return "unknown"
+    return found.group(1).strip(" \t*_").rstrip(".").strip(" \t*_").casefold()
 
 
 def _plan_changed(config, ref, state: dict) -> list[str]:
