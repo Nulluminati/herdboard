@@ -4,14 +4,17 @@ import unittest
 
 from herdboard import cli
 from herdboard.convert_store import ConvertError
+from herdboard.identity import IdentityError
 from herdboard.linear import LinearError, LinearWriteRejectedError, LinearWriteUnknownError
 from herdboard.linear_source import LinearDisabledError
+from herdboard.linear_states import StateCancelledError
 from herdboard.linear_writes import LinearOfflineError, TeamRequiredError
 from herdboard.model import (
     ArchivedError,
     CardActiveError,
     ConflictError,
     DuplicateIdError,
+    FormatError,
     IoError,
     NotFoundError,
     OldFormatError,
@@ -145,6 +148,9 @@ class SkillTests(unittest.TestCase):
                 OldFormatError,
                 ConvertError,
                 DuplicateIdError,
+                FormatError,
+                IdentityError,
+                StateCancelledError,
             )
         }
         known.add(cli.UsageError.code)
@@ -195,6 +201,8 @@ class SkillTests(unittest.TestCase):
             "herdboard_not_found",
             "timer_failed",
         }
+        # StartError takes its code in the constructor; this is its default.
+        known.add("start_failed")
         # Herdr's own error codes pass through `start` unchanged.
         known.add("worktree_create_failed")
         self.assertEqual(named - known, set())
