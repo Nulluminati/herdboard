@@ -293,6 +293,20 @@ class LensTests(FactoryTestCase):
                 self.assertEqual(factory.count_confirmed(text), 1)
                 self.assertEqual(factory.count_questions(text), 1)
 
+    def test_a_heading_with_a_count_or_more_words_opens_its_section(self):
+        for confirmed, risks in [
+            ("## Confirmed problems (2)", "## Risks and questions (1)"),
+            ("## Confirmed problems found", "## Risks and questions to answer"),
+            ("## Confirmed Problems - must fix", "## Risks and Questions - check these"),
+            ("## Confirmed problems \u2014 must fix", "## Risks and questions \u2013 check"),
+            ("## Confirmed problems(2)", "## Risks and questions: 1"),
+        ]:
+            with self.subTest(heading=confirmed):
+                text = f"{confirmed}\n- [high] a.py:1: bug.\n- [low] a.py:2: leak.\n\n{risks}\n- a.py:3: why?\n"
+                self.assertEqual((factory.count_confirmed(text), factory.count_questions(text)), (2, 1))
+        # A heading that only starts with the same letters is another section.
+        self.assertEqual(factory.count_confirmed("## Confirmed problemsets\n- a.py:1: bug.\n"), 0)
+
     def test_a_verification_limits_heading_ends_a_section_in_any_style(self):
         for heading in [
             "## Verification limits",

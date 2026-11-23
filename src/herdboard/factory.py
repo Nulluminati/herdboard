@@ -150,6 +150,15 @@ def _is_heading(line: str) -> bool:
     return bool(words) and words[0] in LENSES
 
 
+def _opens(line: str, heading: str) -> bool:
+    """True when a heading line names the `heading` section, alone or with more words after it.
+
+    `## Confirmed problems (2)`, `## Confirmed problems found` and `## Confirmed problems - must fix`
+    all open "Confirmed problems"."""
+    text, name = heading_text(line), heading.casefold()
+    return text == name or text.startswith(tuple(name + mark for mark in " (:-\u2013\u2014"))
+
+
 def _section(text: str, heading: str) -> list[str]:
     """The findings under a `heading`, up to the next heading: its list items at the list's level.
 
@@ -157,7 +166,7 @@ def _section(text: str, heading: str) -> list[str]:
     lines, inside, bullets = [], False, FindingBullets()
     for line in unfenced_lines(text):
         if _is_heading(line):
-            inside, bullets = heading_text(line) == heading.casefold(), FindingBullets()
+            inside, bullets = _opens(line, heading), FindingBullets()
             continue
         if inside and bullets.is_finding(line):
             lines.append(line)
