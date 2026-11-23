@@ -91,6 +91,17 @@ class StoreParentTests(StoreTestCase):
             self.store.set_parent(self.parent.ref, loner.ref)
         self.assertEqual(raised.exception.code, "parent_nested")
 
+    def test_a_card_with_an_archived_sub_card_cannot_become_a_sub_card(self):
+        child = self.store.add(self.inbox, "Child", parent=self.parent.ref)
+        self.store.done(child.ref)
+        self.store.archive(child.ref)
+        loner = self.store.add(self.inbox, "Loner")
+        for call in (self.store.set_parent, self.store.check_parent):
+            with self.subTest(call=call.__name__), self.assertRaises(HerdboardError) as raised:
+                call(self.parent.ref, loner.ref)
+            self.assertEqual(raised.exception.code, "parent_nested")
+        self.assertIsNone(self.store.show(self.parent.ref).parent)
+
     def test_a_card_is_not_its_own_parent(self):
         with self.assertRaises(HerdboardError) as raised:
             self.store.set_parent(self.parent.ref, self.parent.ref)

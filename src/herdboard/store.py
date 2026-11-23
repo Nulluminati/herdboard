@@ -347,6 +347,14 @@ class Store:
             file.columns[0].cards.extend(orphans)
         return _Board(path, file, text, cards)
 
+    def _sub_cards(self, board: _Board, card_id: str) -> list[str]:
+        """The sub-cards of a card: those that `board.toml` lists, then the archived ones.
+
+        Archived sub-cards count, because unarchive brings them back with their parent.
+        """
+        archived = [card.id for card in self._read_archive(board.path) if card.file.parent == card_id]
+        return board.children(card_id) + archived
+
     def _read_archive(self, path: Path) -> list[_Card]:
         """The archived cards of a board, newest first."""
         cards = [self._read_card(folder) for folder in self._card_folders(path / "archive")]
@@ -905,9 +913,10 @@ class Store:
             board = self._read(source)
             card = self._find(board, located)
             self._check_unique(card.id)
-            if board.children(card.id):
+            if self._sub_cards(board, card.id):
                 raise ParentError(
-                    f"Cannot move {card.id}: it has sub-cards on the board. Move them first", "has_sub_cards"
+                    f"Cannot move {card.id}: it has sub-cards. Move them first; unarchive an archived one before that",
+                    "has_sub_cards",
                 )
             old_column = board.column_of(card.id)
             destination = self._read(target)
@@ -994,7 +1003,7 @@ class Store:
             card = self._find(board, located)
             self._check_unique(card.id)
             # Archived sub-cards count too: unarchive would bring them back with a missing parent.
-            if board.children(card.id) or any(c.file.parent == card.id for c in self._read_archive(board.path)):
+            if self._sub_cards(board, card.id):
                 raise ParentError(f"Cannot delete {card.id}: it has sub-cards. Delete them first", "has_sub_cards")
             view = self._board_view(board, card.id)
             board.column_of(card.id).cards.remove(card.id)
@@ -1155,7 +1164,7 @@ class Store:
             )
         if found.file.parent:
             raise ParentError(f"{parent} is a sub-card; sub-cards go one level deep", "parent_nested")
-        if child is not None and board.children(child):
+        if child is not None and self._sub_cards(board, child):
             raise ParentError(f"{child} has sub-cards, so it cannot be a sub-card", "parent_nested")
 
     def check_parent(self, ref: str, parent: str) -> None:

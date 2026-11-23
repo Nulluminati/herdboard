@@ -230,7 +230,7 @@ Errors are JSON on stdout: `{"error": {"code": "...", "message": "..."}}`. Exit 
 | `convert` | `convert-store` could not convert the old boards and changed nothing. Tell the user the message. |
 | `archived` | The todo is archived. Ask the user before you run `unarchive <id>`. |
 | `card_active` | The card's worktree still exists, or its agent or planner still runs. `move --board` and `delete` refuse a started card too. Tell the user the message. |
-| `has_sub_cards` | A parent with sub-cards stays. For `archive` and `move --board`, archive or move the sub-cards first. For `delete`, delete the sub-cards first, archived ones too. Ask the user first. |
+| `has_sub_cards` | A parent with sub-cards stays. For `archive`, archive the sub-cards first. For `move --board`, move the sub-cards first, archived ones too: unarchive them before the move. For `delete`, delete the sub-cards first, archived ones too. Ask the user first. |
 | `linear_archive` | herdboard archives only todos. Tell the user. |
 | `duplicate_id` | Two card folders have the same todo ID. Tell the user to run `herdboard doctor`. |
 | `not_found` | Run `list` to get the correct reference, or ask the user for the column. |
@@ -273,7 +273,7 @@ Errors are JSON on stdout: `{"error": {"code": "...", "message": "..."}}`. Exit 
 | `gh_unavailable` | The PR path needs the GitHub CLI `gh`. Tell the user. |
 | `push_failed`, `pr_failed` | `git push` or `gh` failed. Tell the user the message. Nothing was merged. |
 | `parent_missing` | The parent is not a todo on the same board. Run `list` and use a todo of that board. |
-| `parent_nested` | Sub-cards go one level deep: the parent is a sub-card, or the card has sub-cards. Tell the user. |
+| `parent_nested` | Sub-cards go one level deep: the parent is a sub-card, or the card has sub-cards, archived ones too. Tell the user. |
 | `parent_not_promoted` | `promote` takes the parent card; its sub-cards become sub-issues. Ask the user before you promote the parent. |
 | `children_open` | `merge` of a parent card found sub-cards that are not done. Tell the user; `merge --force` merges anyway. |
 | `repo_required` | The card has no repository. Ask the user: a repository board (`--repo`), a new local repository (`--new-repo [PATH]`), or no repository (`--no-repo`). |

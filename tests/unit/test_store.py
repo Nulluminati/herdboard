@@ -508,6 +508,18 @@ class MoveToBoardTest(StoreTestCase):
         with self.assertRaises(HerdboardError):
             self.store.move_to_board("tpar", b)
 
+    def test_parent_with_archived_sub_cards_is_refused(self):
+        a = self.put(
+            "a",
+            [("Todo", [{"id": "tpar", "title": "p"}])],
+            archive=[{"id": "tkid", "title": "k", "parent": "tpar", "archived": CREATED}],
+        )
+        b = self.put("b", [("Todo", [])])
+        with self.assertRaises(HerdboardError) as caught:
+            self.store.move_to_board("tpar", b)
+        self.assertEqual(caught.exception.code, "has_sub_cards")
+        self.assertTrue((a / "cards" / "tpar").exists())
+
 
 class LockTest(StoreTestCase):
     def run_threads(self, targets):
