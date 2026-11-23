@@ -967,6 +967,13 @@ class ModuleTests(unittest.TestCase):
         self.assertIn("usage: herdboard", result.stdout)
 
 
+class HelpTests(unittest.TestCase):
+    def test_unarchive_ref_help_names_a_card_id(self):
+        commands = next(a for a in cli.build_parser()._actions if a.dest == "command")
+        ref = next(a for a in commands.choices["unarchive"]._actions if a.dest == "ref")
+        self.assertEqual(ref.help, "the card's ID, such as t3m9")
+
+
 class ClosedPipeTests(CliTestCase):
     """A reader that stops early, such as `head`, closes the pipe before herdboard writes."""
 

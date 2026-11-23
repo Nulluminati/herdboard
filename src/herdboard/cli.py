@@ -222,7 +222,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_argument("--board", help="with --done: board name, inbox or a project name; default: this repository's")
 
     sub = command("unarchive", "move an archived todo to its board's done column")
-    sub.add_argument("ref", help="a todo ID, or an archive reference such as acme-api:archive-2")
+    sub.add_argument("ref", help="the card's ID, such as t3m9")
     sub.add_argument("--yes", action="store_true", help="also unarchive an archived parent without asking")
 
     sub = command("promote", "turn a todo into a Linear issue, its checklist into sub-issues")
