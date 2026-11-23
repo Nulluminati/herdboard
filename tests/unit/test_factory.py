@@ -1003,8 +1003,22 @@ class GateTests(FactoryTestCase):
         self.assertEqual(factory.verdict_of("**Verdict: changes needed**\n"), "changes needed")
         self.assertEqual(factory.verdict_of("## Looks good\n"), "unknown")
 
+    def test_the_verdict_does_not_depend_on_inline_code_marks(self):
+        self.assertEqual(factory.verdict_of("Verdict: `approve`\n"), "approve")
+        self.assertEqual(factory.verdict_of("`Verdict: approve`\n"), "approve")
+        self.assertEqual(factory.verdict_of("`Verdict:` changes needed\n"), "changes needed")
+        self.assertEqual(factory.verdict_of("Verdict: `changes needed`.\n"), "changes needed")
+        self.assertEqual(factory.verdict_of("`Looks good`\n"), "unknown")
+
     def test_a_markdown_verdict_keeps_the_approval(self):
         self.fake.verdict = "## Verdict: **approve**\n\n## Plan steps not done\nNone.\n"
+        self.write_evidence()
+        message, text = self.finish()
+        self.assertEqual(message, "Factory done: approve.")
+        self.assertTrue(text.startswith("Verdict: approve\n"), text)
+
+    def test_an_inline_code_verdict_keeps_the_approval(self):
+        self.fake.verdict = "Verdict: `approve`\n\n## Plan steps not done\nNone.\n"
         self.write_evidence()
         message, text = self.finish()
         self.assertEqual(message, "Factory done: approve.")
