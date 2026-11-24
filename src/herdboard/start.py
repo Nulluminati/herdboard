@@ -362,23 +362,21 @@ def open_details_pane(ref: str, host_pane: str, config, config_file: Path | None
             herdr("tab", "focus", focused, tolerated=("tab_not_found",))
         herdr("pane", "rename", pane, label)
         export_config(pane, config_file)
+        view = f"{herdboard_command(config_file)} details {shlex.quote(ref)}"
         # Herdr prints nothing for `pane run` when it works, so only the exit code counts.
         try:
-            result = command(
-                [
-                    os.environ.get("HERDR_BIN_PATH") or "herdr",
-                    "pane",
-                    "run",
-                    pane,
-                    f"{herdboard_command(config_file)} details {shlex.quote(ref)}",
-                ]
-            )
+            result = command([os.environ.get("HERDR_BIN_PATH") or "herdr", "pane", "run", pane, view])
         except (OSError, subprocess.TimeoutExpired) as error:
             raise StartError(f"Herdr is not reachable: {error}", "herdr_unavailable") from error
         if result.returncode:
             raise StartError(
                 f"Herdr cannot run the details view: {(result.stderr or result.stdout).strip()}", "herdr_error"
             )
+        if isinstance(host.get("cwd"), str) and host["cwd"]:
+            # Herdr restores the pane as a shell; the startup hook runs the view in it again.
+            from .restore import remember
+
+            remember(workspace, label, host["cwd"], view)
         return pane
     except HerdboardError as error:
         if pane:

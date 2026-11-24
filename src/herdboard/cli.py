@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import sys
 from collections.abc import Callable
 from dataclasses import asdict
@@ -294,6 +295,8 @@ def build_parser() -> argparse.ArgumentParser:
     sub = command("plan-wait", "log each save of the plan until the planner ends (run by plan)")
     sub.add_argument("ref")
     sub.add_argument("--pane", required=True, help="the planner's pane")
+
+    command("restore-panes", "run herdboard's panes again after a Herdr restart (run at Herdr startup)")
 
     sub = command(
         "sidebar-refresh", "report the Herdr sidebar tokens of the started cards again (run at Herdr startup)"
@@ -1322,6 +1325,13 @@ def _cmd_plan_wait(ctx: _Context) -> dict:
     return {"ref": ref, "exit_code": plan.wait(ctx.store, ref, ctx.args.pane)}
 
 
+def _cmd_restore_panes(ctx: _Context) -> dict:
+    from .restore import restore_panes
+
+    restore_panes()
+    return {}
+
+
 def _cmd_sidebar_refresh(ctx: _Context) -> dict:
     from .start import sidebar_refresh
 
@@ -1822,6 +1832,27 @@ def _init_for_board(ctx: _Context) -> Callable[[], Path] | None:
     return lambda: ctx.store.init_board(identity)
 
 
+def _remember_board_pane(ctx: _Context) -> None:
+    """Keep a restore record for the board's Herdr pane, so the board runs there again after a restart."""
+    pane = os.environ.get("HERDR_PANE_ID")
+    if not pane:
+        return
+    from .restore import remember_pane
+    from .start import herdboard_command
+
+    args = ctx.args
+    words = ["-C", str(ctx.directory), "board"]
+    if args.view:
+        words += ["--view", args.view]
+    if args.project:
+        words += ["--project", args.project]
+    if args.offline:
+        words.append("--offline")
+    if args.prs:
+        words.append("--prs")
+    remember_pane(pane, f"{herdboard_command(config_path(args.config))} {shlex.join(words)}")
+
+
 def _cmd_board(ctx: _Context) -> dict:
     view = ctx.chosen_view()
     views = ctx.views
@@ -1830,6 +1861,7 @@ def _cmd_board(ctx: _Context) -> dict:
         from .board import HerdboardApp, agent_font_installed
     except ImportError as error:
         raise HerdboardError(f"The board needs Textual: {error}") from error
+    _remember_board_pane(ctx)
     HerdboardApp(
         ctx.store,
         view,
@@ -2016,6 +2048,7 @@ COMMANDS = {
     "plan": _cmd_plan,
     "plan-wait": _cmd_plan_wait,
     "sidebar-refresh": _cmd_sidebar_refresh,
+    "restore-panes": _cmd_restore_panes,
     "review": _cmd_review,
     "review-wait": _cmd_review_wait,
     "pr-wait": _cmd_pr_wait,
@@ -2079,7 +2112,7 @@ def _render_notice(notice: dict | None) -> None:
 
 
 def _render(command: str, result: dict, as_json: bool, action: str | None = None) -> None:
-    if command in ("board", "sidebar-refresh"):
+    if command in ("board", "sidebar-refresh", "restore-panes"):
         return
     if command == "convert-store":
         _emit_json(result) if as_json else _render_convert(result)
@@ -2420,9 +2453,17 @@ def _main(argv: list[str] | None) -> int:
         if args.command != "convert-store":
             ctx.store.check_layout()
         # Add validates its input first. Migration previews write nothing. The sidebar refresh
-        # runs from the plugin folder at Herdr startup and needs no board. The details pane
-        # only reads.
-        if args.command not in ("init", "migrate", "add", "sidebar-refresh", "details", "convert-store"):
+        # and the pane restore run from the plugin folder at Herdr startup and need no board.
+        # The details pane only reads.
+        if args.command not in (
+            "init",
+            "migrate",
+            "add",
+            "sidebar-refresh",
+            "restore-panes",
+            "details",
+            "convert-store",
+        ):
             _ensure_repo_board(ctx)
         result = COMMANDS[args.command](ctx)
         _update_sidebar(args.command, result)

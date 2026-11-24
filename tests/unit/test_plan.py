@@ -10,7 +10,18 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from herdboard import activity, agent_review, attachments, merge, pi_extensions, plan, review, start, verification
+from herdboard import (
+    activity,
+    agent_review,
+    attachments,
+    merge,
+    pi_extensions,
+    plan,
+    restore,
+    review,
+    start,
+    verification,
+)
 from herdboard.config import Config
 from herdboard.identity import repo_identity
 from herdboard.store import Store
@@ -713,6 +724,16 @@ class WaitTests(PlanTestCase):
         self.fake.states = ["working", None]
         self.wait()
         self.assertEqual(self.fake.find("pane", "close"), [["pane", "close", "w1:p8"]])
+
+    def test_the_closed_details_pane_loses_its_restore_record(self):
+        self.planner.plan(self.card.ref)
+        label = f"details - {self.card.ref}"
+        workspace = json.loads((start.state_dir() / "plans.json").read_text())[self.card.ref]["workspace_id"]
+        restore.remember(workspace, label, "/work", "herdboard details")
+        restore.remember("w1", "herdboard", "/work", "herdboard board")
+        self.fake.states = ["working", None]
+        self.wait()
+        self.assertEqual([r["label"] for _, r in restore._records()], ["herdboard"])
 
     def test_a_planner_that_ends_without_a_plan_logs_that(self):
         self.planner.plan(self.card.ref)

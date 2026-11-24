@@ -3,11 +3,12 @@
 import json
 import os
 import subprocess
+import tempfile
 import unittest
 from datetime import datetime
 from unittest import mock
 
-from herdboard import activity, details, start
+from herdboard import activity, details, restore, start
 from herdboard.config import Config
 from herdboard.store import CardView
 from support.herdboard_cli import CliTestCase
@@ -293,7 +294,7 @@ class PaneHerdr:
             return subprocess.CompletedProcess(argv, 1, "", json.dumps({"error": {"code": "broken", "message": "no"}}))
         result = {}
         if operation == "pane get":
-            result = {"pane": {"pane_id": args[2], "tab_id": "w1:t1", "workspace_id": "w1"}}
+            result = {"pane": {"pane_id": args[2], "tab_id": "w1:t1", "workspace_id": "w1", "cwd": "/work"}}
         elif operation == "pane list":
             result = {
                 "panes": [
@@ -321,6 +322,11 @@ class PaneHerdr:
 class OpenDetailsPaneTests(unittest.TestCase):
     def setUp(self):
         self.config = Config()
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        env = mock.patch.dict(os.environ, {"XDG_STATE_HOME": temp.name})
+        env.start()
+        self.addCleanup(env.stop)
         self.fake = PaneHerdr()
         patcher = mock.patch.object(start, "command", self.fake)
         patcher.start()
@@ -343,6 +349,18 @@ class OpenDetailsPaneTests(unittest.TestCase):
                 ["pane", "run", "w1:p2", "herdboard details t123"],
             ],
         )
+
+    def test_keeps_a_restore_record_for_a_herdr_restart(self):
+        start.open_details_pane("t123", "w1:p1", self.config)
+        self.assertEqual(
+            [(r["workspace_id"], r["label"], r["cwd"], r["command"]) for _, r in restore._records()],
+            [("w1", "details - t123", "/work", "herdboard details t123")],
+        )
+
+    def test_a_failed_pane_keeps_no_restore_record(self):
+        self.fake.fail = "pane run"
+        start.open_details_pane("t123", "w1:p1", self.config)
+        self.assertEqual(restore._records(), [])
 
     def test_the_swap_gives_the_focus_back_to_the_users_tab(self):
         self.fake.focused = "w2:t1"

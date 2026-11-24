@@ -10,6 +10,8 @@ import os
 import pytest
 
 os.environ["HERDBOARD_NO_UPDATE_CHECK"] = "1"
+# A test run inside a Herdr pane must not act on that pane, such as the board's restore record for it.
+os.environ.pop("HERDR_PANE_ID", None)
 
 
 @pytest.fixture(autouse=True)

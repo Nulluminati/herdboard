@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from herdboard import merge, mockup, pr_write, start
+from herdboard import merge, mockup, pr_write, restore, start
 from support.herdboard_cli import CliTestCase
 from support.herdboard_merge import MergeTestCase, PullRequestTestCase
 
@@ -259,6 +259,14 @@ class FinishTests(MergeTestCase):
         review.Reviewer(self.store, self.repo).review(self.card.ref)
         self.merger.finish(self.card.ref, force=True)
         self.assertEqual(self.calls("plugin", "pane", "close"), [["plugin", "pane", "close", "w9:p2:hunk"]])
+
+    def test_finish_drops_the_restore_records_of_the_workspace(self):
+        self.started()
+        workspace = start.find_record(self.card.ref)[1]["workspace_id"]
+        restore.remember(workspace, f"details - {self.card.ref}", "/work", "herdboard details")
+        restore.remember("w-other", "herdboard", "/work", "herdboard board")
+        self.merger.finish(self.card.ref, force=True)
+        self.assertEqual([r["workspace_id"] for _, r in restore._records()], ["w-other"])
 
     def test_finish_removes_the_mockup_drafts(self):
         self.started()

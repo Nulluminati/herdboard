@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest import mock
 
@@ -94,6 +95,22 @@ class BoardCommandTests(CliTestCase):
                 mock.patch("herdboard.board.agent_font_installed", return_value=installed),
             ):
                 self.assertEqual(board_arguments(self)["agent_logos"], installed)
+
+    def test_the_board_keeps_a_restore_record_for_its_herdr_pane(self):
+        self.init_repo_board()
+        with (
+            mock.patch.dict(os.environ, {"HERDR_PANE_ID": "w1:p4"}),
+            mock.patch("herdboard.restore.remember_pane") as remember,
+            mock.patch("herdboard.start.herdboard_command", return_value="herdboard"),
+        ):
+            board_arguments(self, "--prs")
+        remember.assert_called_once_with("w1:p4", f"herdboard -C {self.repo} board --prs")
+
+    def test_the_board_outside_herdr_keeps_no_restore_record(self):
+        self.init_repo_board()
+        with mock.patch("herdboard.restore.remember_pane") as remember:
+            board_arguments(self)
+        remember.assert_not_called()
 
     def test_prs_opens_the_board_on_the_pull_request_list(self):
         self.init_repo_board()

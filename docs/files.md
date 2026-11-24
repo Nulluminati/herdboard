@@ -125,3 +125,16 @@ herdboard keeps its state in `~/.local/state/herdboard/`:
 | `pr_reviews.json` | The workspace, Hunk session, agent and review state of each pull request review, keyed `owner/repo#N` |
 | `pr-reviews/` | The request for each pull request reviewer, and its worker's output |
 | `<workspace>/<user>/` | The Linear cache, state choices and `promote` records, per Linear account |
+| `restore/<key>.json` | One restore record for each details or board pane |
+
+### Restore records
+
+Herdr restores each pane's workspace, label and folder after a restart, but not the command that runs in it. herdboard writes a record when it opens a details pane, and the board writes one for its own pane when that pane has a label. Each record is a JSON object with four strings:
+
+```json
+{"workspace_id": "w1", "label": "details - t123", "cwd": "/home/me/Projects/api", "command": "herdboard details t123"}
+```
+
+At Herdr startup, `herdboard restore-panes` looks at every pane with the same workspace, label and folder as a record. Herdr can give a restored pane a new ID, so the record names no pane ID. When the only process in the pane is its shell, with no `-c` command, herdboard runs the record's command there with `herdr pane run`. It waits up to 10 seconds for a shell that has not started. A pane that Herdr starts with its own command, such as a default-layout tab, is left alone. A record without a matching pane is deleted, and so are the records of a workspace that `finish` closes.
+
+Another tool can write records in the same format: herdboard runs any record's command. Use a file name that no other record uses.

@@ -181,7 +181,7 @@ command = "nulluminati.herdboard.details"
 description = "herdboard: show card details"
 ```
 
-Herdr does not keep the pane after a restart. Use the action to open it again.
+Herdr restores the pane after a restart, but as a bare shell: it keeps the label and the folder, not the command. At Herdr startup, herdboard runs the details view again in each restored details pane (`herdboard restore-panes`, see [restore records](files.md#restore-records)). A board pane comes back the same way when its Herdr pane has a label, as a board tab from the Herdr action has. herdboard runs the command only in a pane whose shell runs nothing else.
 
 ## review
 

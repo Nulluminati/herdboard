@@ -16,7 +16,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import activity, mockup, pr_write
+from . import activity, mockup, pr_write, restore
 from .config import thinking_levels
 from .linear_cards import LINEAR_REF, issue_card
 from .linear_states import refuse
@@ -357,8 +357,12 @@ class Merger:
 
     def finish(self, ref, force=False):
         card, ref, key, record = self._started(ref)
+        workspace = record.get("workspace_id")
         with _lock(".start-" + safe_key(key) + ".lock"):
             result = self._finish(card, ref, key, record, force=force)
+        if workspace:
+            # The workspace closes with the worktree, so its panes have nothing to restore.
+            restore.forget(workspace)
         # Drafts that the user did not attach are no longer needed.
         mockup.discard_drafts(ref)
         return {"ref": ref, **result}

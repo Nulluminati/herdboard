@@ -47,6 +47,12 @@ command = ["python3", "bin/open_details.py"]
 [[startup]]
 command = ["python3", "bin/sidebar_refresh.py"]
 
+# Herdr restores the details and board panes as bare shells, without their
+# command. Run each one again from herdboard's restore records. The script
+# returns at once.
+[[startup]]
+command = ["python3", "bin/restore_panes.py"]
+
 [[events]]
 on = "pane.agent_detected"
 command = ["python3", "bin/sidebar_refresh.py"]

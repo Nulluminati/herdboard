@@ -16,7 +16,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-from . import activity, attachments, pi_extensions
+from . import activity, attachments, pi_extensions, restore
 from . import start as start_module
 from .agent_review import _reviewer_status, start_worker
 from .brief import _one_line
@@ -655,6 +655,7 @@ def _close_details(ref: str, record: dict) -> None:
         for entry in (found or {}).get("panes", []):
             if entry.get("tab_id") == tab and entry.get("label") == start_module.details_label(ref):
                 herdr("pane", "close", entry["pane_id"], tolerated=("pane_not_found",))
+                restore.forget(workspace, start_module.details_label(ref))
     except HerdboardError as error:
         print(f"herdboard: cannot close the details pane: {error}", file=sys.stderr)
 
