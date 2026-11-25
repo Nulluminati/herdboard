@@ -1,11 +1,7 @@
 """The Automations tab: G goes there after the Notes tab, the list of automations, and its keys."""
 
-import asyncio
-import os
-import tempfile
 import unittest
 from itertools import pairwise, product
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 from textual.containers import VerticalScroll
@@ -16,43 +12,16 @@ from herdboard.board import (
     AutomationFormScreen,
     AutomationsScreen,
     ConfirmScreen,
-    HerdboardApp,
     KeyBar,
     ModelScreen,
     NotesScreen,
     PullRequestsScreen,
     TabBar,
 )
-from herdboard.config import Config
-from herdboard.pr_reviews import Page
-from herdboard.store import Store
+from support.herdboard_board import TabTestCase
 
 
-class AutomationsBoardTestCase(unittest.IsolatedAsyncioTestCase):
-    async def asyncSetUp(self):
-        asyncio.get_running_loop().set_debug(False)
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        env = patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")})
-        env.start()
-        self.addCleanup(env.stop)
-        self.store = Store(Config(todos_dir=root / "todos"))
-        self.path = self.store.ensure_inbox()
-        self.store.add(self.path, "Board card")
-        self.service = Mock()
-        self.service.page.return_value = ("acme/api", Page([], 0, None))
-
-    def app(self):
-        app = HerdboardApp(self.store, "inbox", lambda _: [self.path], reload_interval=60, pr_service=self.service)
-        app.animation_level = "none"
-        return app
-
-    async def settle(self, app, pilot):
-        await pilot.pause()
-        await app.workers.wait_for_complete()
-        await pilot.pause()
-
+class AutomationsBoardTestCase(TabTestCase):
     def tab(self, app) -> str:
         return app.screen.query_one(TabBar).active
 

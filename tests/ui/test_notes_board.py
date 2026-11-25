@@ -1,8 +1,5 @@
 """The Notes tab: the scratchpad of the shown board, or the global note, next to the board."""
 
-import asyncio
-import os
-import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -21,19 +18,14 @@ from herdboard.board import (
 from herdboard.config import Config
 from herdboard.pr_reviews import Page
 from herdboard.store import Store
+from support.herdboard_board import PilotTestCase
 from support.herdboard_store import write_board
 
 
-class NotesTabTests(unittest.IsolatedAsyncioTestCase):
+class NotesTabTests(PilotTestCase):
     async def asyncSetUp(self):
-        asyncio.get_running_loop().set_debug(False)
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        env = patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")})
-        env.start()
-        self.addCleanup(env.stop)
-        self.store = Store(Config(todos_dir=root / "todos"))
+        await super().asyncSetUp()
+        self.store = Store(Config(todos_dir=self.root / "todos"))
         self.inbox = self.store.ensure_inbox()
         self.store.add(self.inbox, "Inbox card")
         self.repo = write_board(self.store.config.todos_dir, "acme-api", [("Backlog", []), ("Done", [])])
@@ -58,11 +50,6 @@ class NotesTabTests(unittest.IsolatedAsyncioTestCase):
 
     def note(self, board: str) -> Path:
         return notes.note_path(self.store.config, board)
-
-    async def settle(self, app, pilot):
-        await pilot.pause()
-        await app.workers.wait_for_complete()
-        await pilot.pause()
 
     async def open_notes(self, app, pilot) -> NotesScreen:
         await self.settle(app, pilot)

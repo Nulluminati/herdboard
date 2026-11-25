@@ -1,16 +1,13 @@
 """The key bar at the bottom: the keys of the top screen, dimmed when they do not apply to the selection."""
 
-import asyncio
-import os
-import tempfile
 import unittest
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from herdboard.board import DetailScreen, HerdboardApp, KeyBar, PullRequestDetailScreen, PullRequestsScreen
 from herdboard.config import Config
 from herdboard.pr_reviews import Page, PullRequest
 from herdboard.store import Store
+from support.herdboard_board import PilotTestCase
 
 
 def pull_request(number, **changes):
@@ -39,16 +36,10 @@ def bar_keys(app) -> dict[str, bool]:
     return keys
 
 
-class KeyBarTests(unittest.IsolatedAsyncioTestCase):
+class KeyBarTests(PilotTestCase):
     async def asyncSetUp(self):
-        asyncio.get_running_loop().set_debug(False)
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        env = patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state"), "HERDR_BIN_PATH": str(root / "no-herdr")})
-        env.start()
-        self.addCleanup(env.stop)
-        self.store = Store(Config(todos_dir=root / "todos"))
+        await super().asyncSetUp()
+        self.store = Store(Config(todos_dir=self.root / "todos"))
         self.path = self.store.ensure_inbox()
         self.service = Mock()
         self.service.page.return_value = (
@@ -61,11 +52,6 @@ class KeyBarTests(unittest.IsolatedAsyncioTestCase):
         app = HerdboardApp(self.store, "inbox", lambda _: [self.path], reload_interval=60, pr_service=self.service)
         app.animation_level = "none"
         return app
-
-    async def settle(self, app, pilot):
-        await pilot.pause()
-        await app.workers.wait_for_complete()
-        await pilot.pause()
 
     async def test_card_keys_are_dimmed_on_an_empty_column(self):
         app = self.app()

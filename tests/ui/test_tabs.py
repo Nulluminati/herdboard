@@ -1,51 +1,30 @@
 """The tab bar at the top, with the Board, Pull requests, Notes and Automations tabs, and the keys of the current
 tab at the bottom."""
 
-import asyncio
 import os
 import tempfile
 import unittest
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from textual.widgets import Footer
 
 from herdboard.board import HeaderBar, HerdboardApp, KeyBar, PullRequestsScreen, TabBar
-from herdboard.config import Config
 from herdboard.pr_reviews import Page
-from herdboard.store import Store
+from support.herdboard_board import TabTestCase
 
 
-class TabBarTests(unittest.IsolatedAsyncioTestCase):
-    async def asyncSetUp(self):
-        asyncio.get_running_loop().set_debug(False)
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        env = patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")})
-        env.start()
-        self.addCleanup(env.stop)
-        self.store = Store(Config(todos_dir=root / "todos"))
-        self.path = self.store.ensure_inbox()
-        self.store.add(self.path, "Board card")
-        self.service = Mock()
-        self.service.page.return_value = ("acme/api", Page([], 0, None))
-
-    def app(self):
-        app = HerdboardApp(self.store, "inbox", lambda _: [self.path], reload_interval=60, pr_service=self.service)
-        app.animation_level = "none"
-        return app
-
-    async def settle(self, app, pilot):
-        await pilot.pause()
-        await app.workers.wait_for_complete()
-        await pilot.pause()
-
+class TabBarTests(TabTestCase):
     def bar(self, app) -> TabBar:
         return app.screen.query_one(TabBar)
 
     def keys(self, app) -> KeyBar:
         return app.screen.query_one(KeyBar)
+
+    def test_tab_tests_use_a_private_state_folder_and_no_real_herdr(self):
+        from herdboard import start as start_module
+
+        self.assertTrue(str(start_module.state_dir()).startswith(tempfile.gettempdir()))
+        self.assertEqual(os.environ["HERDR_BIN_PATH"], str(self.root / "no-herdr"))
 
     async def test_the_board_has_tabs_at_the_top_and_its_keys_at_the_bottom(self):
         app = self.app()

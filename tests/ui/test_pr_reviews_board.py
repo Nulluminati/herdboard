@@ -1,8 +1,5 @@
 """The board's pull request list: G opens it, and its keys start, refresh and finish PR reviews."""
 
-import asyncio
-import os
-import tempfile
 import unittest
 from datetime import UTC
 from io import StringIO
@@ -31,6 +28,7 @@ from herdboard.board import (
 from herdboard.config import Config, load_config
 from herdboard.pr_reviews import Page, PrReviewError, PullRequest
 from herdboard.store import Store
+from support.herdboard_board import PilotTestCase
 
 
 def pull_request(number, title, **changes):
@@ -42,16 +40,10 @@ def pull_request(number, title, **changes):
     return pr
 
 
-class PullRequestBoardTests(unittest.IsolatedAsyncioTestCase):
+class PullRequestBoardTests(PilotTestCase):
     async def asyncSetUp(self):
-        asyncio.get_running_loop().set_debug(False)
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        env = patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")})
-        env.start()
-        self.addCleanup(env.stop)
-        self.store = Store(Config(todos_dir=root / "todos"))
+        await super().asyncSetUp()
+        self.store = Store(Config(todos_dir=self.root / "todos"))
         self.path = self.store.ensure_inbox()
         self.card = self.store.add(self.path, "Board card")
         self.service = Mock()
@@ -110,11 +102,6 @@ class PullRequestBoardTests(unittest.IsolatedAsyncioTestCase):
         app.animation_level = "none"
         app.notify = lambda message, **kwargs: self.notices.append((message, kwargs.get("severity")))
         return app
-
-    async def settle(self, app, pilot):
-        await pilot.pause()
-        await app.workers.wait_for_complete()
-        await pilot.pause()
 
     async def open(self, app, pilot):
         await pilot.press("G")

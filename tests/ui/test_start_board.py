@@ -4,10 +4,8 @@ import asyncio
 import json
 import os
 import subprocess
-import tempfile
 import threading
 import time
-import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -20,21 +18,15 @@ from herdboard.identity import RepoIdentity
 from herdboard.model import HerdboardError
 from herdboard.start import StartError
 from herdboard.store import Store
+from support.herdboard_board import PilotTestCase
 from support.herdboard_verification import plan as verified_plan
 
 
-class StartBoardTests(unittest.IsolatedAsyncioTestCase):
+class StartBoardTests(PilotTestCase):
     async def asyncSetUp(self):
-        asyncio.get_running_loop().set_debug(False)
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        env = patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")})
-        env.start()
-        self.addCleanup(env.stop)
-        self.store = Store(Config(todos_dir=root / "todos"))
-        self.root = root
-        self.config_file = root / "config.toml"
+        await super().asyncSetUp()
+        self.store = Store(Config(todos_dir=self.root / "todos"))
+        self.config_file = self.root / "config.toml"
         self.path = self.store.ensure_inbox()
         self.card = self.store.add(self.path, "Start test")
         # A factory start needs the plan's verification contract.
@@ -1198,18 +1190,12 @@ class StartBoardTests(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(any("No checkout" in str(call) for call in notify.call_args_list))
 
 
-class TargetBoardTests(unittest.IsolatedAsyncioTestCase):
+class TargetBoardTests(PilotTestCase):
     """A card without a repository asks where it runs: a repository, a new one, or none."""
 
     async def asyncSetUp(self):
-        asyncio.get_running_loop().set_debug(False)
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        env = patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")})
-        env.start()
-        self.addCleanup(env.stop)
-        self.store = Store(Config(todos_dir=root / "todos", projects_dir=root / "Projects"))
+        await super().asyncSetUp()
+        self.store = Store(Config(todos_dir=self.root / "todos", projects_dir=self.root / "Projects"))
         self.path = self.store.ensure_inbox()
         self.card = self.store.add(self.path, "Research corvid memory")
         self.other = self.store.init_board(RepoIdentity("github.com/acme/web", "github.com", ("acme", "web")))
@@ -1385,18 +1371,12 @@ class TargetBoardTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(str(app.screen.title_text), "Choose the reviewer")
 
 
-class ParallelBoardTests(unittest.IsolatedAsyncioTestCase):
+class ParallelBoardTests(PilotTestCase):
     """An action on one card blocks only that card and its parent. Other cards stay free."""
 
     async def asyncSetUp(self):
-        asyncio.get_running_loop().set_debug(False)
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        env = patch.dict(os.environ, {"XDG_STATE_HOME": str(root / "state")})
-        env.start()
-        self.addCleanup(env.stop)
-        self.store = Store(Config(todos_dir=root / "todos", projects_dir=root / "Projects"))
+        await super().asyncSetUp()
+        self.store = Store(Config(todos_dir=self.root / "todos", projects_dir=self.root / "Projects"))
         self.path = self.store.ensure_inbox()
         self.a = self.store.add(self.path, "Card A")
         self.b = self.store.add(self.path, "Card B")

@@ -8,6 +8,7 @@ from unittest import mock
 from herdboard.board import HerdboardApp
 from herdboard.config import Config
 from herdboard.identity import RepoIdentity
+from herdboard.pr_reviews import Page
 from herdboard.store import Store
 from support.herdboard_store import render_markdown, write_markdown_board
 
@@ -27,6 +28,41 @@ async def fill(pilot, text, submit=True):
     if submit:
         await pilot.press("enter")
         await settle(pilot)
+
+
+class PilotTestCase(unittest.IsolatedAsyncioTestCase):
+    """A board test in its own temporary folder `self.root`, with a private state folder and no real herdr."""
+
+    async def asyncSetUp(self):
+        # unittest runs the loop in debug mode, which slows every Textual message several times
+        # over and reports slow callbacks on a loaded machine.
+        asyncio.get_running_loop().set_debug(False)
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        # Keys such as `s` reach the real start code: keep its state and Herdr calls inside the test.
+        env = {"XDG_STATE_HOME": str(self.root / "state"), "HERDR_BIN_PATH": str(self.root / "no-herdr")}
+        self.enterContext(mock.patch.dict(os.environ, env))
+
+    async def settle(self, app, pilot):
+        await settle(pilot)
+
+
+class TabTestCase(PilotTestCase):
+    """The inbox board with one card, and a pull request tab with no pull requests."""
+
+    async def asyncSetUp(self):
+        await super().asyncSetUp()
+        self.store = Store(Config(todos_dir=self.root / "todos"))
+        self.path = self.store.ensure_inbox()
+        self.store.add(self.path, "Board card")
+        self.service = mock.Mock()
+        self.service.page.return_value = ("acme/api", Page([], 0, None))
+
+    def app(self):
+        app = HerdboardApp(self.store, "inbox", lambda _: [self.path], reload_interval=60, pr_service=self.service)
+        app.animation_level = "none"
+        return app
 
 
 class BoardTestCase(unittest.IsolatedAsyncioTestCase):
