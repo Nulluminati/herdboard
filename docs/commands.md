@@ -9,7 +9,7 @@
 | `herdboard show <id> [--log]` | Show a card, its attachments and its last 10 log entries. `--log` shows them all |
 | `herdboard move <id> <column> [--position top\|bottom] [--state]` | Move a card to a column |
 | `herdboard move <id> --up\|--down` | Move a todo up or down in its column |
-| `herdboard move <id> [column] --board NAME` | Move a todo, with its card folder, to another board. A started card cannot move |
+| `herdboard move <id> [column] --board NAME` | Move a todo, with its card folder, to another board. A started card cannot move. A parent with sub-cards cannot move, also when a sub-card is archived |
 | `herdboard done <id> [--state]` | Move a card to its board's done column |
 | `herdboard edit <id> [--title] [--body \| --body-file] [--tag NAME... \| --no-tags] [--due YYYY-MM-DD \| --no-due] [--parent ID \| --no-parent] [--type NAME \| --no-type] [--no-notify]` | Change a todo's title, details, tags, due date, parent or type. `--tag` replaces the tags. `--body ""` removes the details. A change of the title or details sends the card's running agent a prompt to read the card again; `--no-notify` sends none |
 | `herdboard log <id> "text"` | Add an entry to the card's activity log |
